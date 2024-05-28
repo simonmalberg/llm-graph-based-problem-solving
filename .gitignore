@@ -19,6 +19,7 @@ pip-log.txt
 *.pycproj
 *.user
 *.pyproj.user
+.DS_Store
 
 # Data
 results/

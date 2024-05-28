@@ -728,5 +728,6 @@ if __name__ == "__main__":
     approaches = [io, cot, tot, tot2, got]
 
     spent = run(samples, approaches, budget, "chatgpt")
+    # spent = run(samples, approaches, budget, "llama3-8b-ollama")  # example how to use ollama
 
     logging.info(f"Spent {spent} out of {budget} budget.")

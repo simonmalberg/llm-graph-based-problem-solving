@@ -45,5 +45,17 @@
         "temperature": 0.6,
         "top_k": 10,
         "max_tokens": 4096
+    },
+    "llama3-8b-ollama" : {
+        "model_id": "llama3",
+        "cache_dir": "/llama3",
+        "prompt_token_cost": 0.0,
+        "response_token_cost": 0.0,
+        "temperature": 0.6,
+        "top_k": 10,
+        "max_tokens": 4096,
+        "stop": null,
+        "organization": "",
+        "api_key": "ollama"
     }
 }
