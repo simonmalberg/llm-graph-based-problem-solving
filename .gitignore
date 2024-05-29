@@ -23,6 +23,7 @@ pip-log.txt
 
 # Data
 results/
+datasets/
 *.out
 *.err
 
