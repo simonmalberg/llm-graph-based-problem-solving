@@ -31,3 +31,6 @@ env/
 
 # Config File
 **/config.json
+
+# Datasets
+datasets/
