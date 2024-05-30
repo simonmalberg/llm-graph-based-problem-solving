@@ -8,8 +8,11 @@ from typing import Dict, List, Callable, Union
 from graph_of_thoughts import controller, language_models, operations, prompter, parser
 
 
-def strip_int_result(text: str) -> int:
-        match = re.search(r'#### (\d+)', text)
+def strip_int_result(text: str, method: str = "not_io") -> int:
+        if method.startswith("io"):
+            match = re.search(r'(\d+).*', text, re.DOTALL)
+        else:
+            match = re.search(r'#### (\d+).*', text, re.DOTALL)
         if match:
             return int(match.group(1))
         return None
@@ -40,7 +43,29 @@ class GSM8KPrompter(prompter.Prompter):
     Inherits from the Prompter class and implements its abstract methods.
     """
 
-    answer_prompt = """<Instruction> Solve the following math problems and provide the full reasoning in the answer as well as the integer solution behind ####. </Instruction>
+    io_prompt = """<Instruction> Solve the following math problems and provide ONLY the integer solution with no comma or dot. Do not output any thoughts, only the answer after. </Instruction>
+
+    <Examples>
+    Input: Natalia sold clips to 48 of her friends in April, and then she sold half as many clips in May. How many clips did Natalia sell altogether in April and May?
+    Output: 72
+
+    Input: Weng earns $12 an hour for babysitting. Yesterday, she just did 50 minutes of babysitting. How much did she earn?
+    Output: 10
+
+    Input: Betty is saving money for a new wallet which costs $100. Betty has only half of the money she needs. Her parents decided to give her $15 for that purpose, and her grandparents twice as much as her parents. How much more money does Betty need to buy the wallet?
+    Output: 5
+
+    Input: Julie is reading a 120-page book. Yesterday, she was able to read 12 pages and today, she read twice as many pages as yesterday. If she wants to read half of the remaining pages tomorrow, how many pages should she read?
+    Output: 42
+
+    Input: James writes a 3-page letter to 2 different friends twice a week.  How many pages does he write a year?
+    Output: 624
+    </Examples>
+
+    Input: {input}
+    Output: """
+
+    cot_prompt = """<Instruction> Solve the following math problems and provide the full reasoning in the answer as well as the integer solution behind ####  with no comma or dot. </Instruction>
 
     <Examples>
     Input: Natalia sold clips to 48 of her friends in April, and then she sold half as many clips in May. How many clips did Natalia sell altogether in April and May?
@@ -73,7 +98,8 @@ class GSM8KPrompter(prompter.Prompter):
     #### 624
     </Examples>
 
-    Input: {input}"""
+    Input: {input}
+    Output: """
 
     def generate_prompt(self, num_branches: int, original: str, current: str, method: str, **kwargs) -> str:
         """
@@ -99,7 +125,9 @@ class GSM8KPrompter(prompter.Prompter):
             input = current
         
         if method.startswith("io"):
-            return self.answer_prompt.format(input=input)
+            return self.io_prompt.format(input=input)
+        elif method.startswith("cot"):
+            return self.cot_prompt.format(input=input)
         else:
             raise ValueError(f"Unknown method: {method}")
         
@@ -143,8 +171,8 @@ class GSM8KParser(parser.Parser):
         """
         new_states = []
         for text in texts:
-            if state["method"].startswith("io"):
-                int_answer = strip_int_result(text)
+            if state["method"].startswith("io") or state["method"].startswith("cot"):
+                int_answer = strip_int_result(text, state["method"])
                 if int_answer is not None:
                     logging.warning(
                         f"Could not parse step answer: {text}. Returning None."
@@ -182,6 +210,9 @@ def io() -> operations.GraphOfOperations:
     operations_graph.append_operation(operations.GroundTruth(test_answer))
 
     return operations_graph
+
+def cot() -> operations.GraphOfOperations:
+    return io()
 
 def run(
         data_ids: List[int],
@@ -284,8 +315,10 @@ def run(
 
 if __name__ == "__main__":
     budget = 30
-    samples = [item for item in range(5)]
-    approaches = [io]
+    samples = [item for item in range(20)]
+    approaches = [io, cot]
+
+    logging.basicConfig(level=logging.INFO)
 
     spent = run(samples, approaches, budget, "llama3-8b-ollama")
 
