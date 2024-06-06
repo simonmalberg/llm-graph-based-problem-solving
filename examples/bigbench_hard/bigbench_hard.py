@@ -22,11 +22,29 @@ TASKS: list[str] contains the list of 27 tasks specified in the BigBench-Hard Da
 """
 
 
+def extract_answer(text: str):
+    match = re.search(r'<Answer>(.*?)<\/Answer>', text)
+    if match:
+        return match.group(1)
+    return None
+
+
+def test_answer(state: Dict) -> bool:
+    logging.warning(f"\nground truth: {state['ground_truth']}\n current_answer: {state['current']}")
+    try:
+        ground_truth = state["ground_truth"]
+        current_answer = state["current"]
+        return ground_truth == current_answer
+    except:
+        return False
+
+
 class BigBenchHardPrompter(prompter.Prompter):
     """
     Generate Prompts for the BigBench-Hard Dataset.
     """
 
+    sys_prompt = """Provide the answer in the exact format as given"""
     io_prompt = """<Instruction> {instruction} </Instruction>
     
 <Examples>
@@ -38,22 +56,36 @@ class BigBenchHardPrompter(prompter.Prompter):
 
     answer_prompt = """<Answer>{answer}</Answer>"""
 
-    def generate_prompt(self, num_branches: int, method: str, task: str, **kwargs) -> str:
+    def __init__(self, task: str):
+        """
+        @param task: The bigbench task to create prompts for.
+        """
+        self.task = task
+
+    def generate_prompt(self, num_branches: int, original: str, current: str, method: str, **kwargs) -> str:
         """
         Generate a generate prompt for the language model.
 
         :param num_branches: The number of responses the prompt should ask the LM to generate.
         :type num_branches: int
+        :param original: Input text.
+        :type original: str
+        :param current: Intermediate solution.
+        :type current: str
         :param method: Method for which the generate prompt is generated.
         :type method: str
-        :param task: The task to generate a prompt for.
-        :type task: str
         :param kwargs: Additional keyword arguments.
         :return: The generate prompt.
         :rtype: str
         :raise AssertionError: If the requested number of branches is not one.
         """
-        prompt_path = project.datasets_dir() / "BIG-Bench-Hard" / "cot-prompts" / f"{task}.txt"
+
+        if current is None or current == "":
+            input_str = original
+        else:
+            input_str = current
+
+        prompt_path = project.datasets_dir() / "BIG-Bench-Hard" / "cot-prompts" / f"{self.task}.txt"
         full_prompt: str = ""
         with open(prompt_path, "r") as f:
             for _ in range(2):  # to skip canary warning
@@ -74,14 +106,15 @@ class BigBenchHardPrompter(prompter.Prompter):
 
                 full_examples.append(self.answer_prompt.format(answer=answers[i]))
             if method.startswith("io"):
-                full_prompt = self.io_prompt.format(instruction=prompt, examples="\n".join(full_examples),
-                                                    input="input")
+                full_prompt = self.io_prompt.format(instruction=f"{self.sys_prompt}\n{prompt}", examples="\n".join(full_examples),
+                                                    input=input_str)
             elif method.startswith("cot"):
-                full_prompt = self.io_prompt.format(instruction=prompt, examples="\n".join(full_examples),
-                                                    input="input")
+                full_prompt = self.io_prompt.format(instruction=f"{self.sys_prompt}\n{prompt}", examples="\n".join(full_examples),
+                                                    input=input_str)
             else:
                 raise ValueError(f"Unknown method: {method}")
 
+        logging.info("full prompt: %s", full_prompt)
         return full_prompt
 
     def aggregation_prompt(self, state_dicts: List[Dict], **kwargs) -> str:
@@ -115,7 +148,21 @@ class BigBenchHardParser(parser.Parser):
         :return: The new thought states after parsing the response from the language model.
         :rtype: List[Dict]
         """
-        raise NotImplementedError("This method needs to be implemented.")
+        new_states = []
+        for text in texts:
+            if state["method"].startswith("io"):
+                answer_str = extract_answer(text)
+                if answer_str is None:
+                    logging.warning(
+                        f"Could not parse step answer: {text}. Returning None."
+                    )
+                new_state = state.copy()
+                new_state["current"] = answer_str
+                new_state["phase"] = 2
+                new_states.append(new_state)
+            else:
+                raise ValueError(f"Unknown method: {state['method']}")
+        return new_states
 
     def parse_aggregation_answer(self, response: str, **kwargs) -> Union[Dict, List[Dict]]:
         pass
@@ -140,7 +187,7 @@ def io() -> operations.GraphOfOperations:
     operations_graph = operations.GraphOfOperations()
 
     operations_graph.append_operation(operations.Generate(1, 1))
-    operations_graph.append_operation(operations.GroundTruth(NotImplemented))
+    operations_graph.append_operation(operations.GroundTruth(test_answer))
 
     return operations_graph
 
@@ -175,7 +222,7 @@ def run(
         methods: List[Callable[[], operations.GraphOfOperations]],
         budget: float,
         lm_name: str,
-        tasks: List[str],
+        tasks: List[str] = [],
 ) -> float:
     orig_budget = budget
     if not tasks:
@@ -207,7 +254,8 @@ def run(
         task_data_path: Path = datasets_dir / f"{task}.json"
         task_results_dir = results_dir / task
         with open(task_data_path, "r") as f:
-            task_data = json.load(f)["examples"]  # we load the entire json at once as it seems the files are not too big.
+            task_data = json.load(f)[
+                "examples"]  # we load the entire json at once as it seems the files are not too big.
             for id, example in enumerate(task_data):
                 for method in methods:
                     method_results_dir = task_results_dir / method.__name__
@@ -230,10 +278,10 @@ def run(
                     executor = controller.Controller(
                         lm,
                         operations_graph,
-                        BigBenchHardPrompter(),
+                        BigBenchHardPrompter(task),
                         BigBenchHardParser(),
                         {
-                            "input": example["input"],
+                            "original": example["input"],
                             "ground_truth": example["target"],
                             "current": "",
                             "phase": 0,
@@ -244,11 +292,12 @@ def run(
                         executor.run()
                     except Exception as e:
                         logging.error(f"Exception: {e}")
-                    output_path:Path = method_results_dir / f"{id}.json"
+                    output_path: Path = method_results_dir / f"{id}.json"
                     executor.output_graph(str(output_path))
                     budget -= lm.cost
 
     return orig_budget - budget
+
 
 if __name__ == "__main__":
     budget = 30

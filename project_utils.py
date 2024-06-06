@@ -29,7 +29,7 @@ def create_results_dir(directory: str, lm_name: str, methods: [str], config: dic
     results_dir = os.path.join(directory, "results")
     if not os.path.exists(results_dir):
         os.makedirs(results_dir)
-    timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     extra_info = f"{lm_name}_{'-'.join([method.__name__ for method in methods])}"
     folder_name = f"{extra_info}_{timestamp}"
     results_folder = os.path.join(results_dir, folder_name)
