@@ -5,21 +5,11 @@ import datetime
 import json
 from pathlib import Path
 from typing import Dict, List, Callable, Union, Any
+
+from graph_of_thoughts.operations import Thought
 from graph_of_thoughts import controller, language_models, operations, prompter, parser
 import project_utils as project
-
-TASKS: list[str] = ["boolean_expressions", "causal_judgement", "date_understanding", "disambiguation_qa",
-                    "dyck_languages",
-                    "formal_fallacies", "geometric_shapes", "hyperbaton", "logical_deduction_five_objects",
-                    "logical_deduction_seven_objects", "logical_deduction_three_objects", "movie_recommendation",
-                    "multistep_arithmetic_two", "navigate", "object_counting", "penguins_in_a_table",
-                    "reasoning_about_colored_objects", "ruin_names", "salient_translation_error_detection", "snarks",
-                    "sports_understanding", "temporal_sequences", "tracking_shuffled_objects_five_objects",
-                    "tracking_shuffled_objects_seven_objects", "tracking_shuffled_objects_three_objects", "web_of_lies",
-                    "word_sorting"]
-"""
-TASKS: list[str] contains the list of 27 tasks specified in the BigBench-Hard Dataset.
-"""
+from bbh_tasks import Tasks as BBH_Tasks
 
 
 def extract_answer(text: str):
@@ -29,8 +19,24 @@ def extract_answer(text: str):
     return None
 
 
+def score_answers_by_frequency(thoughts: List[Thought]) -> List[Thought]:
+    ignore_empty_answers = False  # Setting to true helps with Llama3 as it often doesn't give answer in parseable form.
+    scores = {}
+    for thought in thoughts:
+        current_state = thought.state["current"]
+        scores[current_state] = scores.get(current_state, 0) + 1
+    logging.info("return_most_frequent_answer: scores: {}".format(scores))
+    frequent_answer = max(scores, key=scores.get)
+    for thought in thoughts:
+        thought.score = scores[thought.state["current"]]
+        if ignore_empty_answers:
+            if thought.state is None:
+                thought.score = 0
+    return thoughts
+
+
 def test_answer(state: Dict) -> bool:
-    logging.warning(f"\nground truth: {state['ground_truth']}\n current_answer: {state['current']}")
+    logging.debug(f"\nground truth: {state['ground_truth']}\n current_answer: {state['current']}")
     ground_truth = state["ground_truth"]
     current_answer = state["current"]
     return ground_truth == current_answer
@@ -99,7 +105,7 @@ class BigBenchHardPrompter(prompter.Prompter):
                 elif method.startswith("cot"):
                     full_examples.append(example)
                 else:
-                    raise ValueError(f"Unknown method: {method}")
+                    raise ValueError(f"generate_prompt: Unknown method: {method}")
 
                 full_examples.append(self.answer_prompt.format(answer=answers[i]))
             if method.startswith("io"):
@@ -111,7 +117,7 @@ class BigBenchHardPrompter(prompter.Prompter):
                                                     examples="\n".join(full_examples),
                                                     input=input_str)
             else:
-                raise ValueError(f"Unknown method: {method}")
+                raise ValueError(f"generate_prompt: Unknown method: {method}")
 
         logging.info("full prompt: %s", full_prompt)
         return full_prompt
@@ -149,7 +155,7 @@ class BigBenchHardParser(parser.Parser):
         """
         new_states = []
         for text in texts:
-            if state["method"].startswith("io"):
+            if state["method"].startswith("io") or state["method"].startswith("cot"):
                 answer_str = extract_answer(text)
                 if answer_str is None:
                     logging.warning(
@@ -160,7 +166,7 @@ class BigBenchHardParser(parser.Parser):
                 new_state["phase"] = 2
                 new_states.append(new_state)
             else:
-                raise ValueError(f"Unknown method: {state['method']}")
+                raise ValueError(f"parse_generate_answer: Unknown method: {state['method']}")
         return new_states
 
     def parse_aggregation_answer(self, response: str, **kwargs) -> Union[Dict, List[Dict]]:
@@ -201,7 +207,7 @@ def cot() -> operations.GraphOfOperations:
     operations_graph = operations.GraphOfOperations()
 
     operations_graph.append_operation(operations.Generate(1, 1))
-    operations_graph.append_operation(operations.GroundTruth(NotImplemented))
+    operations_graph.append_operation(operations.GroundTruth(test_answer))
 
     return operations_graph
 
@@ -213,7 +219,18 @@ def cot_sc() -> operations.GraphOfOperations:
     :return: Graph of Operations
     :rtype: GraphOfOperations
     """
-    raise NotImplementedError("This method needs to be implemented.")
+    num_branches = 5
+    operations_graph = operations.GraphOfOperations()
+
+    generate_operation = operations.Generate(1, num_branches)
+    operations_graph.append_operation(generate_operation)
+    operations_graph.append_operation(
+        operations.Selector(selector=score_answers_by_frequency))  # have to do this less than ideal implementation
+    # due to issues with existing scoring function, might be better to refactor
+    operations_graph.append_operation(operations.KeepBestN(1))
+    operations_graph.append_operation(operations.GroundTruth(test_answer))
+
+    return operations_graph
 
 
 def run(
@@ -221,12 +238,12 @@ def run(
         methods: List[Callable[[], operations.GraphOfOperations]],
         budget: float,
         lm_name: str,
-        tasks: List[str] = [],
+        tasks: [str] = [],
 ) -> float:
     orig_budget = budget
     if not tasks:
         logging.info("No tasks specified, selecting all tasks")
-        tasks.extend(TASKS)
+        tasks.extend([task.value for task in list(BBH_Tasks)])
     else:
         logging.info("Running the following tasks: %s", tasks)
 
@@ -301,11 +318,11 @@ def run(
 if __name__ == "__main__":
     budget = 30
     samples = [item for item in range(5)]
-    approaches = [io]
+    approaches = [cot_sc]
+    tasks = [task.value for task in [
+        BBH_Tasks.BOOLEAN_EXPRESSIONS
+    ]]
 
     spent = run(samples, approaches, budget, "llama3-8b-ollama")
 
     logging.info(f"Spent {spent} out of {budget} budget.")
-    # prompter = BigBenchHardPrompter()
-    # for task in TASKS:
-    #     print(prompter.generate_prompt(1, method="io", task=task))
