@@ -31,12 +31,9 @@ def extract_answer(text: str):
 
 def test_answer(state: Dict) -> bool:
     logging.warning(f"\nground truth: {state['ground_truth']}\n current_answer: {state['current']}")
-    try:
-        ground_truth = state["ground_truth"]
-        current_answer = state["current"]
-        return ground_truth == current_answer
-    except:
-        return False
+    ground_truth = state["ground_truth"]
+    current_answer = state["current"]
+    return ground_truth == current_answer
 
 
 class BigBenchHardPrompter(prompter.Prompter):
@@ -106,10 +103,12 @@ class BigBenchHardPrompter(prompter.Prompter):
 
                 full_examples.append(self.answer_prompt.format(answer=answers[i]))
             if method.startswith("io"):
-                full_prompt = self.io_prompt.format(instruction=f"{self.sys_prompt}\n{prompt}", examples="\n".join(full_examples),
+                full_prompt = self.io_prompt.format(instruction=f"{self.sys_prompt}\n{prompt}",
+                                                    examples="\n".join(full_examples),
                                                     input=input_str)
             elif method.startswith("cot"):
-                full_prompt = self.io_prompt.format(instruction=f"{self.sys_prompt}\n{prompt}", examples="\n".join(full_examples),
+                full_prompt = self.io_prompt.format(instruction=f"{self.sys_prompt}\n{prompt}",
+                                                    examples="\n".join(full_examples),
                                                     input=input_str)
             else:
                 raise ValueError(f"Unknown method: {method}")
