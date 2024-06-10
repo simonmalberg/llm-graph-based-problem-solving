@@ -8,14 +8,20 @@ from typing import Dict, List, Callable, Union
 from graph_of_thoughts import controller, language_models, operations, prompter, parser
 
 
-def strip_int_result(text: str, method: str = "not_io") -> int:
-        if method.startswith("io"):
-            match = re.search(r'(\d+).*', text, re.DOTALL)
-        else:
-            match = re.search(r'#### (\d+).*', text, re.DOTALL)
+
+
+def extract_answer(text: str):
+
+    match = re.search(r'"answerKey":\s*"([A-E])"', text)
+    if match:
+        return match.group(1)  
+    else:
+
+        match = re.search(r'answerKey:\s*"([A-E])"', text)
         if match:
-            return int(match.group(1))
-        return None
+            return match.group(1)
+    return None
+
 
 
 def test_answer(state: Dict) -> bool:
@@ -43,7 +49,9 @@ class CommonsenseQAPrompter(prompter.Prompter):
     Inherits from the Prompter class and implements its abstract methods.
     """
 
-    io_prompt = """<Instruction> Use your commonsense knowledge to answer the following question. Choose the correct answer from the options provided below. Output only the letter of the correct answer, no additional text. </Instruction>
+    io_prompt = """<Instruction> Use your commonsense knowledge to answer the following question. Choose the correct answer from the options provided below. Output the answer and make sure it starts with a letter option: 
+    answerKey: "A", because ....
+    </Instruction>
 
     <Examples>
     Input: 
@@ -53,83 +61,78 @@ class CommonsenseQAPrompter(prompter.Prompter):
     C) watch
     D) shoes
     E) hat
-    Output: B
+    Output: answerKey:"B", because a belt is specifically designed to hold up pants, making it the most useful item for preventing pants from falling down.
 
-    Input: 
-    Question: Where would I not want a fox?
-    A) hen house
-    B) england
-    C) mountains
-    D) english hunt
-    E) california
-    Output: A
-
-    Input: 
-    Question: Why do people read gossip magazines?
-    A) entertained
-    B) get information
-    C) learn
-    D) improve know how
-    E) lawyer told to
-    Output: A
-
-    Input: 
-    Question: What do all humans want to experience in their own home?
-    A) feel comfortable
-    B) work hard
-    C) fall in love
-    D) lay eggs
-    E) live forever
-    Output: A
-
-    Input: 
-    Question: What type of person typically contracts illness?
-    A) hospital
-    B) head
-    C) sick person
-    D) elderly person
-    E) doctor's office
-    Output: D
     </Examples>
 
     Input: {input}
-    Output: """
+    Output:"""
 
-    cot_prompt = """<Instruction> Solve the following math problems and provide the full reasoning in the answer as well as the integer solution behind ####  with no comma or dot. </Instruction>
-
+    
+    cot_prompt = """<Instruction> Use your commonsense knowledge to answer the following question. Let's work this out in a step by step way to be sure we have the right answer. Output the answers with your thinking step starting with the answerkey as follow:
+    answerKey: " "...
+    Paraphrase:...
+    Town (A): Could include various zones, not necessarily linked to business activities.
+    At Hotel (B): Could serve business travelers but is not exclusively for business professionals and might cater more to tourists.
+    Mall (C): Focuses more on retail and family-oriented services rather than business dealings.
+    Business Sector (D): Directly caters to the business crowd, located within or near business hubs and offices.
+    Yellow Pages (E): Not a physical location but a business directory.
+    </Instruction>
+    
+    <Approach>
+    To give the best answer follow these steps:
+    1.clearly state the letter of the answer in the format given.
+    2.You need to first paraphrase the problem, state the relevant premise according to the context, 
+    3.Deduct facts one at a step.Give the reason why the answer is correct.
+    </Approach>
     <Examples>
-    Input: Natalia sold clips to 48 of her friends in April, and then she sold half as many clips in May. How many clips did Natalia sell altogether in April and May?
-    Output: Natalia sold 48/2 = 24 clips in May.
-    Natalia sold 48+24 = 72 clips altogether in April and May.
-    #### 72
+    Input: 
+    Question: Where is a business restaurant likely to be located??
+    A) town
+    B) at hotel
+    C) mall
+    D) business sector
+    E) yellow pages
+    Output:
+    answerKey:"D"
+    Paraphrase:
+    Business restaurants are designed to cater to individuals who are involved in business activities, often looking for convenience and efficiency during business hours.
+    Deduct facts:
+    Town (A): Could include various zones, not necessarily linked to business activities.
+    At Hotel (B): Could serve business travelers but is not exclusively for business professionals and might cater more to tourists.
+    Mall (C): Focuses more on retail and family-oriented services rather than business dealings.
+    Business Sector (D): Directly caters to the business crowd, located within or near business hubs and offices.
+    Yellow Pages (E): Not a physical location but a business directory.
 
-    Input: Weng earns $12 an hour for babysitting. Yesterday, she just did 50 minutes of babysitting. How much did she earn?
-    Output: Weng earns 12/60 = $0.2 per minute.
-    Working 50 minutes, she earned 0.2 x 50 = $10.
-    #### 10
+    Input: 
+    Question: When someone doesn't know how to skate well, they normally do what to stay up?
+    A) spin
+    B) romance
+    C) hold hands
+    D) fall down
+    E) grab side railing
+    Output:
+    answerKey:"E"
+    Paraphrase:
+    Individuals who are not proficient in skating often need support to maintain balance and prevent falls. This support can come in various forms, depending on what is available and what the individual feels most comfortable with.
+    Deduct facts:
+    Spin (A): This is a complex move usually performed by experienced skaters, not typical for beginners.
+    Romance (B): This choice is unrelated to physical support for staying upright while skating.
+    Hold hands (C): This is a common method for beginners to support each other and maintain balance.
+    Fall down (D): This is a result of losing balance, not a method to stay up.
+    Grab side railing (E): This provides physical support and is a common choice for beginners to help themselves stay upright.
 
-    Input: Betty is saving money for a new wallet which costs $100. Betty has only half of the money she needs. Her parents decided to give her $15 for that purpose, and her grandparents twice as much as her parents. How much more money does Betty need to buy the wallet?
-    Output: In the beginning, Betty has only 100 / 2 = $50.
-    Betty's grandparents gave her 15 * 2 = $30.
-    This means, Betty needs 100 - 50 - 30 - 15 = $5 more.
-    #### 5
 
-    Input: Julie is reading a 120-page book. Yesterday, she was able to read 12 pages and today, she read twice as many pages as yesterday. If she wants to read half of the remaining pages tomorrow, how many pages should she read?
-    Output: Maila read 12 x 2 = 24 pages today.
-    So she was able to read a total of 12 + 24 = 36 pages since yesterday.
-    There are 120 - 36 = 84 pages left to be read.
-    Since she wants to read half of the remaining pages tomorrow, then she should read 84/2 = 42 pages.
-    #### 42
 
-    Input: James writes a 3-page letter to 2 different friends twice a week.  How many pages does he write a year?
-    Output: He writes each friend 3*2=6 pages a week.
-    So he writes 6*2=12 pages every week.
-    That means he writes 12*52=624 pages a year.
-    #### 624
+
+
     </Examples>
 
     Input: {input}
     Output: """
+
+
+    
 
     def generate_prompt(self, num_branches: int, original: str, current: str, method: str, **kwargs) -> str:
         """
@@ -200,15 +203,18 @@ class CommonsenseQAParser(parser.Parser):
         :rtype: List[Dict]
         """
         new_states = []
+ 
         for text in texts:
+            #print(text)
+            
             if state["method"].startswith("io") or state["method"].startswith("cot"):
-                int_answer = strip_int_result(text, state["method"])
-                if int_answer is not None:
+                answer_key = extract_answer(text)
+                if answer_key is None:
                     logging.warning(
                         f"Could not parse step answer: {text}. Returning None."
                     )
                 new_state = state.copy()
-                new_state["current"] = int_answer
+                new_state["current"] = answer_key
                 new_state["phase"] = 2
                 new_states.append(new_state)
             else:
@@ -242,7 +248,12 @@ def io() -> operations.GraphOfOperations:
     return operations_graph
 
 def cot() -> operations.GraphOfOperations:
-    return io()
+    operations_graph = operations.GraphOfOperations()
+
+    operations_graph.append_operation(operations.Generate(1, 1))
+    operations_graph.append_operation(operations.GroundTruth(test_answer))
+
+    return operations_graph
 
 def run(
         data_ids: List[int],
@@ -253,18 +264,22 @@ def run(
 
     orig_budget = budget
     data_path = os.path.join(os.path.dirname(__file__), "test.jsonl")
+
     data = []
-    with open(data_path, "r") as f:
-        for i, line in enumerate(f):
-            json_line = json.loads(line)
-            json_line["id"] = i
-            data.append(json_line)
+    if os.path.exists(data_path):  # test if exits
+        with open(data_path, "r") as f:
+            for i, line in enumerate(f):
+                try:
+                    json_line = json.loads(line)
+                    json_line["id"] = i
+                    data.append(json_line)
+                except json.JSONDecodeError as e:
+                    print(f"Error decoding JSON on line {i}: {line}")  # print error
+    else:
+        print("File does not exist.")
 
     if data_ids is None or len(data_ids) == 0:
         data_ids = list(range(len(data)))
-    print("数据长度：", len(data))
-    print("数据索引：", data_ids)
-    print(data)
     selected_data = [data[i] for i in data_ids]
 
 
@@ -297,6 +312,7 @@ def run(
         os.makedirs(os.path.join(results_folder, method.__name__))
     
     for data in selected_data:
+       
         logging.info(f"Running data {data['id']: }{data['question']}: {data['answerKey']}")
         if budget <= 0.0:
             logging.error(
@@ -311,14 +327,16 @@ def run(
                     f"Budget has been depleted, stopping. Method {method.__name__} has not been run."
                 )
                 break
-            lm = language_models.ChatGPT(
-                os.path.join(
+            raw_path = os.path.join(
                     os.path.dirname(__file__),
-                    "../../graph_of_thoughts/language_models/config.json",
-                ),
+                    "../../graph_of_thoughts/language_models/config.json")
+            abs_path = os.path.abspath(raw_path)
+            lm = language_models.ChatGPT(
+                abs_path,
                 model_name=lm_name,
                 cache=True,
             )
+
             operations_graph = method()
             executor = controller.Controller(
                 lm,
@@ -327,7 +345,7 @@ def run(
                 CommonsenseQAParser(),
                 {
                     "original": data["question"],
-                    "ground_truth": strip_int_result(data["answerKey"]),
+                    "ground_truth": data["answerKey"],
                     "current": "",
                     "phase": 0,
                     "method": method.__name__,
@@ -350,10 +368,9 @@ def run(
 
 if __name__ == "__main__":
     budget = 30
-    samples = [item for item in range(20)]
-    approaches = [io, cot]
+    samples = [item for item in range(10)]
+    approaches = [io,cot,tot]
 
-    logging.basicConfig(level=logging.INFO)
 
     spent = run(samples, approaches, budget, "chatgpt")
 
