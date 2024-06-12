@@ -23,7 +23,7 @@ class SetIntersectionPlotter(BaseResultPlotter):
 
 
 if __name__ == "__main__":
-    set_plotter = SetIntersectionPlotter(
+    plotter = SetIntersectionPlotter(
         result_directory=Path(__file__).parent / "results" / "chatgpt_io-cot-tot-tot2-got_2024-06-12_15-40-56",
         config=Config(
             methods_order=["io", "cot", "tot", "tot2", "got"],
@@ -42,4 +42,4 @@ if __name__ == "__main__":
             fig_fontsize=12,
             )
         )
-    set_plotter.plot_results()
+    plotter.plot_results()

@@ -24,7 +24,7 @@ class KeywordCountingPlotter(BaseResultPlotter):
 
 
 if __name__ == "__main__":
-    doc_plotter = KeywordCountingPlotter(
+    plotter = KeywordCountingPlotter(
         result_directory=Path(__file__).parent / "results" / "ADD YOUR RESULT DIRECTORY HERE",
         config=Config(
             methods_order=["io", "cot", "tot", "tot2", "got4", "got8", "gotx"],
@@ -43,4 +43,4 @@ if __name__ == "__main__":
             title="Keyword Counting"
         )
         )
-    doc_plotter.plot_results()
+    plotter.plot_results()

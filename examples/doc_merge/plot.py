@@ -24,7 +24,7 @@ class DocMergePlotter(BaseResultPlotter):
 
 
 if __name__ == "__main__":
-    doc_plotter = DocMergePlotter(
+    plotter = DocMergePlotter(
         result_directory=Path(__file__).parent / "results" / "chatgpt_io-cot-tot-got-got2_2024-06-12_16-42-09",
         config=Config(
             methods_order=["io", "cot", "tot", "got", "got2"],
@@ -42,4 +42,4 @@ if __name__ == "__main__":
             fig_fontsize=12,
         )
         )
-    doc_plotter.plot_results()
+    plotter.plot_results()

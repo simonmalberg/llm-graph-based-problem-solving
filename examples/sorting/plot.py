@@ -24,7 +24,7 @@ class SortingPlotter(BaseResultPlotter):
 
 
 if __name__ == "__main__":
-    doc_plotter = SortingPlotter(
+    plotter = SortingPlotter(
         result_directory=Path(__file__).parent / "results" / "ADD YOUR RESULT DIRECTORY HERE",
         config=Config(
             methods_order=["io", "cot", "tot", "tot2", "got"],
@@ -43,4 +43,4 @@ if __name__ == "__main__":
             title="Sorting"
         )
         )
-    doc_plotter.plot_results()
+    plotter.plot_results()
