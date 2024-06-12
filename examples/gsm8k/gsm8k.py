@@ -7,33 +7,11 @@ from pathlib import Path
 from typing import Dict, List, Callable, Union
 from graph_of_thoughts import controller, language_models, operations, prompter, parser
 
-
-def strip_int_result(text: str, method: str = "not_io") -> int:
-        if method.startswith("io"):
-            match = re.search(r'(\d+).*', text, re.DOTALL)
-        else:
-            match = re.search(r'#### (\d+).*', text, re.DOTALL)
-        if match:
-            return int(match.group(1))
-        return None
-
-
-def test_answer(state: Dict) -> bool:
-    """
-    Function to test whether the final solution matches ground truth.
-
-    :param state: Thought state that represents the final solution.
-    :type state: Dict
-    :return: Returns whether the solution matches the ground truth.
-    :rtype: bool
-    """
-
-    try:
-        ground_truth = state["ground_truth"]
-        current_answer = state["current"]
-        return ground_truth == current_answer
-    except:
-        return False
+# This is a hack to also allow execution of this file from the examples directory
+try:
+    from . import utils
+except ImportError:
+    import utils
 
 
 class GSM8KPrompter(prompter.Prompter):
@@ -43,7 +21,8 @@ class GSM8KPrompter(prompter.Prompter):
     Inherits from the Prompter class and implements its abstract methods.
     """
 
-    io_prompt = """<Instruction> Solve the following math problems and provide ONLY the integer solution with no comma or dot. Do not output any thoughts, only the answer after. </Instruction>
+    io_prompt_base = """\
+    <Instruction> Solve the following math problems and provide ONLY the integer solution with no comma or dot. Do not output any thoughts, only the answer after. </Instruction>
 
     <Examples>
     Input: Natalia sold clips to 48 of her friends in April, and then she sold half as many clips in May. How many clips did Natalia sell altogether in April and May?
@@ -65,7 +44,8 @@ class GSM8KPrompter(prompter.Prompter):
     Input: {input}
     Output: """
 
-    cot_prompt = """<Instruction> Solve the following math problems and provide the full reasoning in the answer as well as the integer solution behind ####  with no comma or dot. </Instruction>
+    cot_prompt_base = """\
+    <Instruction> Solve the following math problems and provide the full reasoning in the answer as well as the integer solution behind ####  with no comma or dot. </Instruction>
 
     <Examples>
     Input: Natalia sold clips to 48 of her friends in April, and then she sold half as many clips in May. How many clips did Natalia sell altogether in April and May?
@@ -101,6 +81,12 @@ class GSM8KPrompter(prompter.Prompter):
     Input: {input}
     Output: """
 
+    score_prompt_base = """\
+    <Instruction> Score the answer given for the following (partial) math problem. The answer should be binary, True if the answer is correct and False if it is incorrect. Output only True or False. </Instruction>
+    Input (partial) math problem: {input}
+    Answer to the math problem: {answer}
+    Output: """
+
     def generate_prompt(self, num_branches: int, original: str, current: str, method: str, **kwargs) -> str:
         """
         Generate a generate prompt for the language model.
@@ -125,9 +111,9 @@ class GSM8KPrompter(prompter.Prompter):
             input = current
         
         if method.startswith("io"):
-            return self.io_prompt.format(input=input)
+            return self.io_prompt_base.format(input=input)
         elif method.startswith("cot"):
-            return self.cot_prompt.format(input=input)
+            return self.cot_prompt_base.format(input=input)
         else:
             raise ValueError(f"Unknown method: {method}")
         
@@ -135,13 +121,15 @@ class GSM8KPrompter(prompter.Prompter):
     def aggregation_prompt(self, state_dicts: List[Dict], **kwargs) -> str:
         pass
 
+    def score_prompt(self, state_dicts: List[Dict], **kwargs) -> str:
+        if len(state_dicts) > 1:
+            raise NotImplementedError("Scoring multiple states is not implemented.")
+        return self.score_prompt_base.format(input=state_dicts[0]["original"], answer=state_dicts[0]["current"])
+
     def improve_prompt(self, **kwargs) -> str:
         pass
 
     def validation_prompt(self, **kwargs) -> str:
-        pass
-
-    def score_prompt(self, state_dicts: List[Dict], **kwargs) -> str:
         pass
     
     
@@ -172,7 +160,7 @@ class GSM8KParser(parser.Parser):
         new_states = []
         for text in texts:
             if state["method"].startswith("io") or state["method"].startswith("cot"):
-                int_answer = strip_int_result(text, state["method"])
+                int_answer = utils.strip_int_result(text, state["method"])
                 if int_answer is not None:
                     logging.warning(
                         f"Could not parse step answer: {text}. Returning None."
@@ -194,8 +182,16 @@ class GSM8KParser(parser.Parser):
     def parse_validation_answer(self, response: str, **kwargs) -> bool:
         pass
 
-    def parse_score_answer(self, response: str, **kwargs) -> List[float]:
-        pass
+    def parse_score_answer(self, states: List[Dict], texts: List[str]) -> List[float]:
+        assert len(states) == 1, "Scoring multiple states is not implemented."
+        score = []
+        for text in texts:
+            if "True" in text and not "False" in text:
+                score.append(1.0)
+            else:
+                score.append(0.0)
+        return score
+
 
 def io() -> operations.GraphOfOperations:
     """
@@ -207,7 +203,8 @@ def io() -> operations.GraphOfOperations:
     operations_graph = operations.GraphOfOperations()
 
     operations_graph.append_operation(operations.Generate(1, 1))
-    operations_graph.append_operation(operations.GroundTruth(test_answer))
+    operations_graph.append_operation(operations.Score(1, False))
+    operations_graph.append_operation(operations.GroundTruth(utils.test_answer))
 
     return operations_graph
 
@@ -292,7 +289,7 @@ def run(
                 GSM8KParser(),
                 {
                     "original": data["question"],
-                    "ground_truth": strip_int_result(data["answer"]),
+                    "ground_truth": utils.strip_int_result(data["answer"]),
                     "current": "",
                     "phase": 0,
                     "method": method.__name__,
