@@ -220,19 +220,10 @@ def cotsc() -> operations.GraphOfOperations:
     :return: Graph of Operations
     :rtype: GraphOfOperations
     """
-
-    def score_by_majority_vote(states: List[Dict]) -> List[float]:
-        answers = [state["current"] for state in states]
-        answer_counts = Counter(answers)
-        most_common_answer, _ = answer_counts.most_common(1)[0]
-        scores = [1 if answer == most_common_answer else 0 for answer in answers]
-        return scores
-
-
     operations_graph = operations.GraphOfOperations()
 
     operations_graph.append_operation(operations.Generate(1, 5))
-    operations_graph.append_operation(operations.Score(combined_scoring=True, scoring_function=score_by_majority_vote))
+    operations_graph.append_operation(operations.ScoreByFrequency(ignore_none=True))
     operations_graph.append_operation(operations.KeepBestN(1, True))
     operations_graph.append_operation(operations.Score(1, False))
     operations_graph.append_operation(operations.GroundTruth(utils.test_answer))
