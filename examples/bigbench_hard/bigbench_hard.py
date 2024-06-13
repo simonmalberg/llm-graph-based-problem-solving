@@ -267,7 +267,7 @@ def tot() -> operations.GraphOfOperations:
 
 
 def run(
-        data_ids: List[int],
+        samples_per_task: int,
         methods: List[Callable[[], operations.GraphOfOperations]],
         budget: float,
         lm_name: str,
@@ -306,6 +306,8 @@ def run(
             task_data = json.load(f)[
                 "examples"]  # we load the entire json at once as it seems the files are not too big.
             for id, example in enumerate(task_data):
+                if id >= samples_per_task: # end evaluation when samples limit is reached
+                    break
                 for method in methods:
                     method_results_dir = task_results_dir / method.__name__
                     logging.info(f"Running method {method.__name__}")
@@ -350,12 +352,12 @@ def run(
 
 if __name__ == "__main__":
     budget = 30
-    samples = [item for item in range(5)]
-    approaches = [cot_zeroshot]
+    samples = 1
+    approaches = [io, cot, cot_zeroshot, cot_sc]
     tasks = [task.value for task in [
         BBH_Tasks.BOOLEAN_EXPRESSIONS
     ]]
 
-    spent = run(samples, approaches, budget, "llama3-8b-ollama")
+    spent = run(samples, approaches, budget, "llama3-8b-ollama", tasks)
 
     logging.info(f"Spent {spent} out of {budget} budget.")
