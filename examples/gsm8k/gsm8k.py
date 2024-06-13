@@ -348,3 +348,4 @@ if __name__ == "__main__":
     spent = run(samples, approaches, budget, "chatgpt")
 
     logging.info(f"Spent {spent} out of {budget} budget.")
+    
