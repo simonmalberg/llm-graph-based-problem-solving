@@ -1,7 +1,7 @@
 from enum import Enum
 
 
-class Tasks(Enum):
+class BBHTask(Enum):
     """
     An Enum containing the list of 27 tasks specified in the BigBench-Hard Dataset.
     """

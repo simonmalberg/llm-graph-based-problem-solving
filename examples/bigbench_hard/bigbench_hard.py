@@ -9,7 +9,7 @@ from typing import Dict, List, Callable, Union, Any
 from graph_of_thoughts.operations import Thought
 from graph_of_thoughts import controller, language_models, operations, prompter, parser
 import project_utils as project
-from bbh_tasks import Tasks as BBH_Tasks
+from bbh_tasks import BBHTask as BBH_Tasks
 
 
 def extract_answer(text: str):
@@ -54,10 +54,14 @@ class BigBenchHardPrompter(prompter.Prompter):
 {examples}
 </Examples>
     
-<Input> {input} </Input>
-    """
+<Input> {input} </Input>"""
 
     answer_prompt = """<Answer>{answer}</Answer>"""
+
+    cot_zeroshot_prompt = f"""<Instruction> {{instruction}} </Instruction>
+    
+    <Input> {{input}} </Input>
+    Let us think Step by Step, then provide the answer in this format: {answer_prompt}"""
 
     def __init__(self, task: str):
         """
@@ -108,14 +112,18 @@ class BigBenchHardPrompter(prompter.Prompter):
                     raise ValueError(f"generate_prompt: Unknown method: {method}")
 
                 full_examples.append(self.answer_prompt.format(answer=answers[i]))
+
             if method.startswith("io"):
                 full_prompt = self.io_prompt.format(instruction=f"{self.sys_prompt}\n{prompt}",
                                                     examples="\n".join(full_examples),
                                                     input=input_str)
-            elif method.startswith("cot"):
+            elif method == "cot" or "cot_sc":
                 full_prompt = self.io_prompt.format(instruction=f"{self.sys_prompt}\n{prompt}",
                                                     examples="\n".join(full_examples),
                                                     input=input_str)
+            elif method == "cot_zeroshot":
+                full_prompt = self.cot_zeroshot_prompt.format(instruction=f"{self.sys_prompt}\n{prompt}",
+                                                              input=input_str)
             else:
                 raise ValueError(f"generate_prompt: Unknown method: {method}")
 
@@ -212,6 +220,21 @@ def cot() -> operations.GraphOfOperations:
     return operations_graph
 
 
+def cot_zeroshot() -> operations.GraphOfOperations:
+    """
+    Generates the Graph of Operations for the COT method.
+
+    :return: Graph of Operations
+    :rtype: GraphOfOperations
+    """
+    operations_graph = operations.GraphOfOperations()
+
+    operations_graph.append_operation(operations.Generate(1, 1))
+    operations_graph.append_operation(operations.GroundTruth(test_answer))
+
+    return operations_graph
+
+
 def cot_sc() -> operations.GraphOfOperations:
     """
     Generates the Graph of Operations for the COT-SC method.
@@ -231,6 +254,16 @@ def cot_sc() -> operations.GraphOfOperations:
     operations_graph.append_operation(operations.GroundTruth(test_answer))
 
     return operations_graph
+
+
+def tot() -> operations.GraphOfOperations:
+    """
+     Generates the Graph of Operations for the TOT method.
+
+     :return: Graph of Operations
+     :rtype: GraphOfOperations
+     """
+    raise NotImplementedError("Not Implemented")
 
 
 def run(
@@ -318,7 +351,7 @@ def run(
 if __name__ == "__main__":
     budget = 30
     samples = [item for item in range(5)]
-    approaches = [cot_sc]
+    approaches = [cot_zeroshot]
     tasks = [task.value for task in [
         BBH_Tasks.BOOLEAN_EXPRESSIONS
     ]]
