@@ -263,7 +263,7 @@ def run(
     ) -> float:
 
     orig_budget = budget
-    data_path = os.path.join(os.path.dirname(__file__), "test.jsonl")
+    data_path = os.path.join(os.path.dirname(__file__), "datasets/")
 
     data = []
     if os.path.exists(data_path):  # test if exits
