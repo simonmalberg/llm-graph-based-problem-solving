@@ -80,6 +80,8 @@ class ChatGPT(AbstractLanguageModel):
 
         if num_responses == 1:
             response = self.chat([{"role": "user", "content": query}], num_responses)
+        elif self.api_key == "ollama":
+            response = [self.chat([{"role": "user", "content": query}], 1) for _ in range(num_responses)]
         else:
             response = []
             next_try = num_responses
