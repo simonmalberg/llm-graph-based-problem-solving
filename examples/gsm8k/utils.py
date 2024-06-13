@@ -46,3 +46,4 @@ def percentage_off(state: Dict) -> float:
         return abs(ground_truth - current_answer) / ground_truth
     except:
         return 1.0
+        
