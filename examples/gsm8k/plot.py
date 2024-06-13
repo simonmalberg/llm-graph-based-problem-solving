@@ -25,10 +25,11 @@ class GSM8KPlotter(BaseResultPlotter):
 
 if __name__ == "__main__":
     doc_plotter = GSM8KPlotter(
-        result_directory=Path(__file__).parent / "results" / "llama3-8b-ollama_io-cot_2024-06-12_14-50-52",
+        # result_directory=Path(__file__).parent / "results" / "llama3-8b-ollama_io-cot_2024-06-12_14-50-52",
+        result_directory=Path(__file__).parent / "results" / "chatgpt_io-cot-cotsc_2024-06-13_10-13-33",
         config=Config(
-            methods_order=["io", "cot"],
-            methods_labels=["IO", "CoT"],
+            methods_order=["io", "cot", "cotsc"],
+            methods_labels=["IO", "CoT", "CoT-SC"],
             y_lower=0,
             y_upper=2,
             cost_upper=1,

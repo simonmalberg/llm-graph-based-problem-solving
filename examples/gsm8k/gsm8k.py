@@ -5,7 +5,9 @@ import datetime
 import json
 from pathlib import Path
 from typing import Dict, List, Callable, Union
+from collections import Counter
 from graph_of_thoughts import controller, language_models, operations, prompter, parser
+from graph_of_thoughts.operations.thought import Thought
 
 # This is a hack to also allow execution of this file from the examples directory
 try:
@@ -211,6 +213,32 @@ def io() -> operations.GraphOfOperations:
 def cot() -> operations.GraphOfOperations:
     return io()
 
+def cotsc() -> operations.GraphOfOperations:
+    """
+    Generates the Graph of Operations for the CoT method with Self-Consistency.
+
+    :return: Graph of Operations
+    :rtype: GraphOfOperations
+    """
+
+    def score_by_majority_vote(states: List[Dict]) -> List[float]:
+        answers = [state["current"] for state in states]
+        answer_counts = Counter(answers)
+        most_common_answer, _ = answer_counts.most_common(1)[0]
+        scores = [1 if answer == most_common_answer else 0 for answer in answers]
+        return scores
+
+
+    operations_graph = operations.GraphOfOperations()
+
+    operations_graph.append_operation(operations.Generate(1, 5))
+    operations_graph.append_operation(operations.Score(combined_scoring=True, scoring_function=score_by_majority_vote))
+    operations_graph.append_operation(operations.KeepBestN(1, True))
+    operations_graph.append_operation(operations.Score(1, False))
+    operations_graph.append_operation(operations.GroundTruth(utils.test_answer))
+
+    return operations_graph
+
 def run(
         data_ids: List[int],
         methods: List[Callable[[], operations.GraphOfOperations]],
@@ -312,11 +340,11 @@ def run(
 
 if __name__ == "__main__":
     budget = 30
-    samples = [item for item in range(20)]
-    approaches = [io, cot]
+    samples = [item for item in range(30)]
+    approaches = [io, cot, cotsc]
 
     logging.basicConfig(level=logging.INFO)
 
-    spent = run(samples, approaches, budget, "llama3-8b-ollama")
+    spent = run(samples, approaches, budget, "chatgpt")
 
     logging.info(f"Spent {spent} out of {budget} budget.")
