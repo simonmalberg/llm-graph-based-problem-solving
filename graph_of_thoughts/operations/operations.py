@@ -7,6 +7,7 @@
 # main author: Nils Blach
 
 from __future__ import annotations
+from collections import Counter
 import logging
 from enum import Enum
 from typing import List, Iterator, Dict, Callable, Union
@@ -264,6 +265,29 @@ class Score(Operation):
             self.id,
             len(self.thoughts),
         )
+
+class ScoreByFrequency(Score):
+    """
+    Operation to score thoughts by frequency.
+    """
+
+    def __init__(self, ignore_none: bool = False) -> None:
+        """
+        Initializes a new ScoreByFrequency operation.
+
+        :param ignore_none: Whether to ignore None answers in the frequency calculations. Defaults to False.
+        :type ignore_none: bool
+        """
+
+        def _score_answers_by_frequency(states: List[Dict]) -> List[float]:
+
+            answers = [state["current"] for state in states]
+            answer_counts = Counter(answers)
+            scores = [0 if answer is None and ignore_none else answer_counts[answer] for answer in answers]
+            return scores
+
+        super().__init__(combined_scoring=True, scoring_function=_score_answers_by_frequency)
+
 
 
 class ValidateAndImprove(Operation):
