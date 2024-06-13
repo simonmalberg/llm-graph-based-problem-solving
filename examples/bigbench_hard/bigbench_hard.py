@@ -98,11 +98,11 @@ class BigBenchHardPrompter(prompter.Prompter):
             for _ in range(2):  # to skip canary warning
                 f.readline()
             prompt: str = f.readline().rstrip("\n")  # prompt is always on the 3rd line for each task
-            examples: [str] = f.read().lstrip("\n").split("\n\n")  # the rest of the file constitutes the example
-            answers: [str] = []
+            examples: List[str] = f.read().lstrip("\n").split("\n\n")  # the rest of the file constitutes the example
+            answers: List[str] = []
             for example in examples:
                 answers.append(example.split("So the answer is ")[-1].removesuffix("."))  # extract answer from example
-            full_examples: [str] = []
+            full_examples: List[str] = []
             for i, example in enumerate(examples):
                 if method.startswith("io"):
                     full_examples.append(example.split("\nA: ")[0])  # remove steps for IO
@@ -222,7 +222,7 @@ def cot() -> operations.GraphOfOperations:
 
 def cot_zeroshot() -> operations.GraphOfOperations:
     """
-    Generates the Graph of Operations for the COT method.
+    Generates the Graph of Operations for the COT ZeroShot method.
 
     :return: Graph of Operations
     :rtype: GraphOfOperations
@@ -271,7 +271,7 @@ def run(
         methods: List[Callable[[], operations.GraphOfOperations]],
         budget: float,
         lm_name: str,
-        tasks: [str] = [],
+        tasks: List[str] = [],
 ) -> float:
     orig_budget = budget
     if not tasks:
