@@ -331,8 +331,8 @@ def run(
 
 if __name__ == "__main__":
     budget = 30
-    samples = [item for item in range(5)]
-    approaches = [cotsc]
+    samples = [item for item in range(30)]
+    approaches = [io, cot, cotsc]
 
     logging.basicConfig(level=logging.INFO)
 
