@@ -89,10 +89,8 @@ class ChatGPT(AbstractLanguageModel):
                     assert next_try > 0
                     res = self.chat([{"role": "user", "content": query}], next_try)
                     response.append(res)
-                    # I edited this code because it seems to be a bug where it always generate only one response, and then exits the loop.
-                    # maybe the code does work (somehow?) with ChatGPT, but I can't really say.
-                    num_responses -= 1
-                    # next_try = min(num_responses, next_try)
+                    num_responses -= next_try
+                    next_try = min(num_responses, next_try)
                 except Exception as e:
                     next_try = (next_try + 1) // 2
                     self.logger.warning(
