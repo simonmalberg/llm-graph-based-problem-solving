@@ -83,6 +83,71 @@ class GSM8KPrompter(prompter.Prompter):
     Input: {input}
     Output: """
 
+    plan_and_solve_prompt_base = """\
+    <Instruction> Plan and solve the following math problems and provide the full reasoning in the answer as well as the integer solution behind ####  with no comma or dot. </Instruction>
+
+    <Examples>
+    Input: Natalia sold clips to 48 of her friends in April, and then she sold half as many clips in May. How many clips did Natalia sell altogether in April and May?
+    Plan:
+        Step 1: How many clips did Natalia sell in April?
+        Step 2: How many clips did Natalia sell in May?
+        Step 3: How many clips did Natalia sell altogether in April and May?
+    Solution:
+        Step 1: Natalia sold 48 clips in April.
+        Step 2: Natalia sold 48/2 = 24 clips in May.
+        Step 3: Natalia sold 48+24 = 72 clips altogether in April and May.
+    #### 72
+
+    Input: Weng earns $12 an hour for babysitting. Yesterday, she just did 50 minutes of babysitting. How much did she earn?
+    Plan:
+        Step 1: How much does Weng earn per minute?
+        Step 2: How much did Weng earn in 50 minutes?
+    Solution:
+        Step 1: Weng earns 12/60 = $0.2 per minute.
+        Step 2: Working 50 minutes, she earned 0.2 x 50 = $10.
+    #### 10
+
+    Input: Betty is saving money for a new wallet which costs $100. Betty has only half of the money she needs. Her parents decided to give her $15 for that purpose, and her grandparents twice as much as her parents. How much more money does Betty need to buy the wallet?
+    Plan:
+        Step 1: How much money does Betty have in the beginning?
+        Step 2: How much money did Betty's grandparents give her?
+        Step 3: How much money does Betty have in total now?
+        Step 4: How much more money does Betty need to buy the wallet?
+    Solution:
+        Step 1: In the beginning, Betty has only 100 / 2 = $50.
+        Step 2: Betty's grandparents gave her 15 * 2 = $30.
+        Step 3: This means, Betty needs 100 - 50 - 30 - 15 = $5 more.
+    #### 5
+
+    Input: Julie is reading a 120-page book. Yesterday, she was able to read 12 pages and today, she read twice as many pages as yesterday. If she wants to read half of the remaining pages tomorrow, how many pages should she read?
+    Plan:
+        Step 1: How many pages did Julie read today?
+        Step 2: How many pages did Julie read since yesterday?
+        Step 3: How many pages are left to be read?
+        Step 4: How many pages should Julie read tomorrow?
+    Solution:
+        Step 1: Julie read 12 x 2 = 24 pages today.
+        Step 2: So she was able to read a total of 12 + 24 = 36 pages since yesterday.
+        Step 3: There are 120 - 36 = 84 pages left to be read.
+        Step 4: Since she wants to read half of the remaining pages tomorrow, then she should read 84/2 = 42 pages.
+    #### 42
+
+    Input: James writes a 3-page letter to 2 different friends twice a week.  How many pages does he write a year?
+    Plan:
+        Step 1: How many pages does he write to each friend a week?
+        Step 2: How many pages does he write to each friend a year?
+        Step 3: How many pages does he write to both friends a year?
+    Solution:
+        Step 1: He writes each friend 3*2=6 pages a week.
+        Step 2: There are 52 weeks in a year, so he writes 6*52=312 pages to each friend a year.
+        Step 3: That means he writes 312*2=624 pages a year.
+    #### 624
+    </Examples>
+
+    Input: {input}
+    Plan:
+    """
+
     score_prompt_base = """\
     <Instruction> Score the answer given for the following (partial) math problem. The answer should be binary, True if the answer is correct and False if it is incorrect. Output only True or False. </Instruction>
     Input (partial) math problem: {input}
@@ -116,6 +181,8 @@ class GSM8KPrompter(prompter.Prompter):
             return self.io_prompt_base.format(input=input)
         elif method.startswith("cot"):
             return self.cot_prompt_base.format(input=input)
+        elif method.startswith("plan_and_solve"):
+            return self.plan_and_solve_prompt_base.format(input=input)
         else:
             raise ValueError(f"Unknown method: {method}")
         
@@ -161,7 +228,7 @@ class GSM8KParser(parser.Parser):
         """
         new_states = []
         for text in texts:
-            if state["method"].startswith("io") or state["method"].startswith("cot"):
+            if state["method"].startswith("io") or state["method"].startswith("cot") or state["method"].startswith("plan_and_solve"):
                 int_answer = utils.strip_int_result(text, state["method"])
                 if int_answer is not None:
                     logging.warning(
@@ -188,7 +255,7 @@ class GSM8KParser(parser.Parser):
         assert len(states) == 1, "Scoring multiple states is not implemented."
         score = []
         for text in texts:
-            if "True" in text and not "False" in text:
+            if "True" in text and "False" not in text:
                 score.append(1.0)
             else:
                 score.append(0.0)
@@ -211,6 +278,9 @@ def io() -> operations.GraphOfOperations:
     return operations_graph
 
 def cot() -> operations.GraphOfOperations:
+    return io()
+
+def plan_and_solve() -> operations.GraphOfOperations:
     return io()
 
 def cotsc() -> operations.GraphOfOperations:
@@ -331,12 +401,12 @@ def run(
 
 if __name__ == "__main__":
     budget = 30
-    samples = [item for item in range(30)]
-    approaches = [io, cot, cotsc]
+    samples = [item for item in range(5)]
+    approaches = [io, cot, cotsc, plan_and_solve]
 
     logging.basicConfig(level=logging.INFO)
 
-    spent = run(samples, approaches, budget, "chatgpt")
+    spent = run(samples, approaches, budget, "llama3-8b-ollama")
 
     logging.info(f"Spent {spent} out of {budget} budget.")
     
