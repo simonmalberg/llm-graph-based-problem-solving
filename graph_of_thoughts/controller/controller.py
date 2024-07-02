@@ -73,7 +73,9 @@ class Controller:
 
         while len(execution_queue) > 0:
             current_operation = execution_queue.pop(0)
-            self.logger.info("Executing operation %s", current_operation.operation_type)
+            self.logger.info("===========================================================================")
+            self.logger.info("Executing operation %s", current_operation.display_name)
+            self.logger.info("===========================================================================")
             current_operation.execute(
                 self.lm, self.prompter, self.parser, **self.problem_parameters
             )
