@@ -85,6 +85,7 @@ class BigBenchHardPrompter(prompter.Prompter):
 
     answer_prompt = """<Answer>{answer}</Answer>"""
 
+    # Zero Shot COT from Kojima et al. (2022)
     cot_zeroshot_prompt = f"""<Instruction> {{instruction}} </Instruction>
     
     <Input> {{input}} </Input>
@@ -107,6 +108,22 @@ class BigBenchHardPrompter(prompter.Prompter):
 
     tot_final_prompt = f"""Given the question <Input>{{input}}</Input> and the intermediate solution <Step>{{step}}</Step>, 
     provide the answer in this format: <Answer>answer</Answer>"""
+
+    instruction_prefix = """<Instruction> {instruction} </Instruction> 
+    "<Input> {input} </Input>
+    """
+
+    # The Plan and Solve Prompt from Wang et al. (2023)
+    plan_solve_basic_prompt = "Let's first understand the problem and devise a plan to solve the problem. " \
+                              "Then, let's carry out the plan to solve the problem step by step. " \
+                              "Give the final answer in this format: <Answer>answer</Answer>"
+
+    # The Plan and Solve Plus Prompt from Wang et al. (2023)
+    plan_solve_plus_prompt = "Let's first understand the problem, extract relevant variables and their corresponding numerals, " \
+                             "and make and devise a complete plan. Then, let's carry out the plan, calculate intermediate variables " \
+                             "(pay attention to correct numerical calculation and commonsense), " \
+                             "solve the problem step by step, and show the answer. " \
+                             "Give the final answer in this format: <Answer>answer</Answer>"
 
     def __init__(self, task: str):
         """
@@ -150,7 +167,7 @@ class BigBenchHardPrompter(prompter.Prompter):
                 answers.append(example.split("So the answer is ")[-1].removesuffix("."))  # extract answer from example
             full_examples: List[str] = []
             for i, example in enumerate(examples):
-                if method.startswith("io"):
+                if method.startswith("io") or method.startswith("plan_solve"):
                     full_examples.append(example.split("\nA: ")[0])  # remove steps for IO
                 elif method.startswith("cot"):
                     full_examples.append(example)
@@ -177,7 +194,11 @@ class BigBenchHardPrompter(prompter.Prompter):
                     full_prompt = self.tot_generate_prompt.format(instruction=f"{self.sys_prompt}\n{prompt}",
                                                                   input=input_str)
                 else:
-                    full_prompt = self.tot_final_prompt.format(input = original, step=input_str)
+                    full_prompt = self.tot_final_prompt.format(input=original, step=input_str)
+            elif method == "plan_solve":
+                full_prompt = self.instruction_prefix.format(instruction=f"{self.sys_prompt}\n{prompt}", input=input_str)+self.plan_solve_basic_prompt
+            elif method == "plan_solve_plus":
+                full_prompt = self.instruction_prefix.format(instruction=f"{self.sys_prompt}\n{prompt}", input=input_str)+self.plan_solve_plus_prompt
             else:
                 raise ValueError(f"generate_prompt: Unknown method: {method}")
 
@@ -195,7 +216,7 @@ class BigBenchHardPrompter(prompter.Prompter):
         inputs = [state_dict["original"] for state_dict in state_dicts]
         logging.info("score_prompt st_dicts: %s", json.dumps(state_dicts))
         final_prompt = ""
-        if(state_dicts[0]["phase"] < 2):
+        if (state_dicts[0]["phase"] < 2):
             final_prompt = self.tot_vote_step_prompt.format(step=thoughts[0], input=inputs[0])
         else:
             final_prompt = self.tot_vote_final_prompt.format(answer=thoughts[0], input=inputs[0])
@@ -226,7 +247,9 @@ class BigBenchHardParser(parser.Parser):
         """
         new_states = []
         for text in texts:
-            if state["method"].startswith("io") or state["method"].startswith("cot"):
+            if (state["method"].startswith("io")
+                    or state["method"].startswith("cot")
+                    or state["method"].startswith("plan_solve")):
                 answer_str = extract_answer(text)
                 if answer_str is None:
                     logging.warning(
@@ -348,6 +371,36 @@ def cot_sc() -> operations.GraphOfOperations:
     return operations_graph
 
 
+def plan_solve() -> operations.GraphOfOperations:
+    """
+         Generates the Graph of Operations for the Plan and Solve method.
+
+         :return: Graph of Operations
+         :rtype: GraphOfOperations
+         """
+    operations_graph = operations.GraphOfOperations()
+
+    operations_graph.append_operation(operations.Generate(1, 1))
+    operations_graph.append_operation(operations.GroundTruth(test_answer))
+
+    return operations_graph
+
+
+def plan_solve_plus() -> operations.GraphOfOperations:
+    """
+         Generates the Graph of Operations for the Plan and Solve Plus method.
+
+         :return: Graph of Operations
+         :rtype: GraphOfOperations
+         """
+    operations_graph = operations.GraphOfOperations()
+
+    operations_graph.append_operation(operations.Generate(1, 1))
+    operations_graph.append_operation(operations.GroundTruth(test_answer))
+
+    return operations_graph
+
+
 def tot() -> operations.GraphOfOperations:
     """
      Generates the Graph of Operations for the TOT method.
@@ -457,16 +510,16 @@ def run(
 
 if __name__ == "__main__":
     budget = 30
-    samples = 1
-    approaches = [tot]
+    samples = 10
+    approaches = [plan_solve, plan_solve_plus]
     logging.basicConfig(
         level=logging.INFO,
-    format='%(asctime)s,%(msecs)03d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s',
-    datefmt='%Y-%m-%d:%H:%M:%S'
+        format='%(asctime)s,%(msecs)03d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s',
+        datefmt='%Y-%m-%d:%H:%M:%S'
     )
 
     tasks = [task.value for task in [
-        BBH_Tasks.BOOLEAN_EXPRESSIONS
+        BBH_Tasks.GEOMETRIC_SHAPES
     ]]
 
     spent = run(samples, approaches, budget, "llama3-8b-ollama", tasks)
