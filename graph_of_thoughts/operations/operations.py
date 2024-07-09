@@ -34,6 +34,7 @@ class OperationType(Enum):
     keep_valid: int = 6
     ground_truth_evaluator: int = 7
     selector: int = 8
+    graph_builder: int = 9
 
 
 class Operation(ABC):
@@ -499,6 +500,17 @@ class Generate(Operation):
         self.logger.info(
             "Generate operation %d created %d new thoughts", self.id, len(self.thoughts)
         )
+
+class GraphBuilder(Operation):
+    """
+    Operation to create a probability tree graph.
+    """
+    operation_type: OperationType = OperationType.graph_builder
+
+    def _execute(self, lm: AbstractLanguageModel, prompter: Prompter, parser: Parser, **kwargs) -> None:
+        
+
+    
 
 
 class Improve(Operation):
