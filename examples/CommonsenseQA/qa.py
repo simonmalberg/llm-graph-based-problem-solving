@@ -10,14 +10,11 @@ import project_utils as project
 
 
 def extract_answer(text: str):
-    match = re.search(r'"answerKey":\s*"([A-E])"', text)
+    match = re.search(r'<Answer>(.*?)<\/Answer>', text)
     if match:
         return match.group(1)
     else:
-
-        match = re.search(r'answerKey:\s*"([A-E])"', text)
-        if match:
-            return match.group(1)
+        logging.error(f"extract_answer: unable to extract answer from {text}")
     return None
 
 
@@ -32,8 +29,8 @@ def test_answer(state: Dict) -> bool:
     """
 
     try:
-        ground_truth = state["ground_truth"]
-        current_answer = state["current"]
+        ground_truth = state["ground_truth"].strip().lower()
+        current_answer = state["current"].strip().lower()
         return ground_truth == current_answer
     except:
         return False
@@ -46,41 +43,32 @@ class CommonsenseQAPrompter(prompter.Prompter):
     Inherits from the Prompter class and implements its abstract methods.
     """
 
-    io_prompt = """<Instruction> Use your commonsense knowledge to answer the following question. Choose the correct answer from the options provided below. Output the answer and make sure it starts with a letter option: 
-    answerKey: "A", because ....
+    io_prompt = """<Instruction> Use your commonsense knowledge to answer the following question. Choose the correct answer from the options provided below. Output the answer in the following format: 
+    <Answer>answer</Answer>
     </Instruction>
 
     <Examples>
-    Input: 
-    Question: What item is most useful for keeping your pants from falling down?
+    Input: What item is most useful for keeping your pants from falling down?
     A) shirt
     B) belt
     C) watch
     D) shoes
     E) hat
-    Output: answerKey:"B", because a belt is specifically designed to hold up pants, making it the most useful item for preventing pants from falling down.
-
+    Output: <Answer>B</Answer>
     </Examples>
 
     Input: {input}
     Output:"""
 
-    cot_zeroshot_prompt = """<Instruction> Use your commonsense knowledge to answer the following question. Let us think Step by Step and choose the correct answer from the options provided below. Output the answer in this exact format: 
-    answerKey: "A".
+    cot_zeroshot_prompt = """<Instruction> Use your commonsense knowledge to answer the following question. Let us think Step by Step, then provide the answer in this format: 
+    <Answer>answer</Answer>
+    e.g. <Answer>E</Answer>
     </Instruction>
 
     Input: {input}
     Output:"""
 
-    cot_prompt = """<Instruction> Use your commonsense knowledge to answer the following question. Let's work this out in a step by step way to be sure we have the right answer. Output the answers with your thinking step starting with the answerkey as follow:
-    answerKey: " "...
-    Paraphrase:...
-    Town (A): Could include various zones, not necessarily linked to business activities.
-    At Hotel (B): Could serve business travelers but is not exclusively for business professionals and might cater more to tourists.
-    Mall (C): Focuses more on retail and family-oriented services rather than business dealings.
-    Business Sector (D): Directly caters to the business crowd, located within or near business hubs and offices.
-    Yellow Pages (E): Not a physical location but a business directory.
-    </Instruction>
+    cot_prompt = """<Instruction> Use your commonsense knowledge to answer the following question. Let us think Step by Step, then provide the answer in this format: <Answer>answer</Answer>
     
     <Approach>
     To give the best answer follow these steps:
@@ -89,67 +77,60 @@ class CommonsenseQAPrompter(prompter.Prompter):
     3.Deduct facts one at a step.Give the reason why the answer is correct.
     </Approach>
     <Examples>
-    Input: 
-    Question: Where is a business restaurant likely to be located??
+    Input: Where is a business restaurant likely to be located?
     A) town
     B) at hotel
     C) mall
     D) business sector
     E) yellow pages
     Output:
-    answerKey:"D"
-    Paraphrase:
     Business restaurants are designed to cater to individuals who are involved in business activities, often looking for convenience and efficiency during business hours.
-    Deduct facts:
     Town (A): Could include various zones, not necessarily linked to business activities.
     At Hotel (B): Could serve business travelers but is not exclusively for business professionals and might cater more to tourists.
     Mall (C): Focuses more on retail and family-oriented services rather than business dealings.
     Business Sector (D): Directly caters to the business crowd, located within or near business hubs and offices.
     Yellow Pages (E): Not a physical location but a business directory.
+    Therefore the answer is 
+    <Answer>D</Answer>
 
-    Input: 
-    Question: When someone doesn't know how to skate well, they normally do what to stay up?
+    Input: When someone doesn't know how to skate well, they normally do what to stay up?
     A) spin
     B) romance
     C) hold hands
     D) fall down
     E) grab side railing
     Output:
-    answerKey:"E"
-    Paraphrase:
     Individuals who are not proficient in skating often need support to maintain balance and prevent falls. This support can come in various forms, depending on what is available and what the individual feels most comfortable with.
-    Deduct facts:
     Spin (A): This is a complex move usually performed by experienced skaters, not typical for beginners.
     Romance (B): This choice is unrelated to physical support for staying upright while skating.
     Hold hands (C): This is a common method for beginners to support each other and maintain balance.
     Fall down (D): This is a result of losing balance, not a method to stay up.
     Grab side railing (E): This provides physical support and is a common choice for beginners to help themselves stay upright.
-
-
-
-
-
+    Therefore the answer is
+    <Answer>E</Answer>
     </Examples>
 
     Input: {input}
     Output: """
 
     # The Plan and Solve Prompt from Wang et al. (2023)
-    plan_solve_basic_prompt = """<Instruction> Use your commonsense knowledge to answer the following question. Choose the correct answer from the options provided below. Output the answer and make sure it starts with a letter option: 
-    answerKey: "A", because ....
-    </Instruction>
+    plan_solve_basic_prompt = """<Instruction> Use your commonsense knowledge to answer the following question. 
     Let's first understand the problem and devise a plan to solve the problem. 
     Then, let's carry out the plan to solve the problem step by step.
+    Give the final answer in this format: <Answer>answer</Answer>
+    e.g. <Answer>E</Answer>
+    </Instruction>
     Input: {input}
     Output:"""
 
     # The Plan and Solve Plus Prompt from Wang et al. (2023)
-    plan_solve_plus_prompt = """<Instruction> Use your commonsense knowledge to answer the following question. Choose the correct answer from the options provided below. Output the answer and make sure it starts with a letter option: 
-    answerKey: "A", because ....
-    </Instruction>
+    plan_solve_plus_prompt = """<Instruction> Use your commonsense knowledge to answer the following question. 
     Let's first understand the problem, extract relevant variables and their corresponding numerals, and make and devise a complete plan. Then, let's carry out the plan, calculate intermediate variables (pay attention to correct numerical calculation and commonsense), 
-    solve the problem step by step, and show the answer.  
-    Output the answer and make sure it starts with a letter option: answerKey: \"A\", because ....
+    solve the problem step by step, and show the answer.
+    Give the final answer in this format: <Answer>answer</Answer>
+    e.g. <Answer>E</Answer>
+    </Instruction>  
+    
     Input: {input}
     Output:"""
 
@@ -176,18 +157,21 @@ class CommonsenseQAPrompter(prompter.Prompter):
         else:
             input = current
 
+        full_prompt = ""
         if method.startswith("io"):
-            return self.io_prompt.format(input=input)
+            full_prompt = self.io_prompt.format(input=input)
         elif method == "cot" or method == "cot_sc":
-            return self.cot_prompt.format(input=input)
+            full_prompt = self.cot_prompt.format(input=input)
         elif method == "cot_zeroshot":
-            return self.cot_zeroshot_prompt.format(input=input)
+            full_prompt = self.cot_zeroshot_prompt.format(input=input)
         elif method == "plan_solve":
-            return self.plan_solve_basic_prompt.format(input=input)
+            full_prompt = self.plan_solve_basic_prompt.format(input=input)
         elif method == "plan_solve_plus":
-            return self.plan_solve_plus_prompt.format(input=input)
+            full_prompt = self.plan_solve_plus_prompt.format(input=input)
         else:
             raise ValueError(f"Unknown method: {method}")
+        logging.info("full_prompt: %s", full_prompt)
+        return full_prompt
 
     def aggregation_prompt(self, state_dicts: List[Dict], **kwargs) -> str:
         pass
@@ -344,6 +328,13 @@ def plan_solve_plus() -> operations.GraphOfOperations:
     return operations_graph
 
 
+def generate_question_string(question: dict):
+    choices = [f"{choice["label"]}) {choice["text"]}" for choice in question["choices"]]
+    return f""" {question["stem"]}
+{"\n".join(choices)}
+"""
+
+
 def run(
         data_ids: List[int],
         methods: List[Callable[[], operations.GraphOfOperations]],
@@ -431,7 +422,7 @@ def run(
                 CommonsenseQAPrompter(),
                 CommonsenseQAParser(),
                 {
-                    "original": data["question"],
+                    "original": generate_question_string(data["question"]),
                     "ground_truth": data["answerKey"],
                     "current": "",
                     "phase": 0,
