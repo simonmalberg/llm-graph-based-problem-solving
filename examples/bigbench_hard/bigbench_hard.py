@@ -1,16 +1,15 @@
+import json
+import logging
 import os
 import re
-import logging
-import datetime
-import json
 import traceback
 from pathlib import Path
-from typing import Dict, List, Callable, Union, Any
+from typing import Dict, List, Callable, Union
 
-from graph_of_thoughts.operations import Thought
-from graph_of_thoughts import controller, language_models, operations, prompter, parser
 import project_utils as project
 from bbh_tasks import BBHTask as BBH_Tasks
+from graph_of_thoughts import controller, language_models, operations, prompter, parser
+from graph_of_thoughts.operations import Thought
 
 
 def extract_answer(text: str):
@@ -363,7 +362,9 @@ def cot_sc() -> operations.GraphOfOperations:
     generate_operation = operations.Generate(1, num_branches)
     operations_graph.append_operation(generate_operation)
     operations_graph.append_operation(
-        operations.Selector(selector=score_answers_by_frequency))  # have to do this less than ideal implementation
+        # operations.Selector(selector=score_answers_by_frequency)  # have to do this less than ideal implementation
+        operations.ScoreByFrequency(ignore_none=True)
+    )
     # due to issues with existing scoring function, might be better to refactor
     operations_graph.append_operation(operations.KeepBestN(1))
     operations_graph.append_operation(operations.GroundTruth(test_answer))
@@ -511,7 +512,7 @@ def run(
 if __name__ == "__main__":
     budget = 30
     samples = 10
-    approaches = [plan_solve, plan_solve_plus]
+    approaches = [cot_sc]
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s,%(msecs)03d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s',
