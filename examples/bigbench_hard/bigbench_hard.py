@@ -1,15 +1,15 @@
+import json
+import logging
 import os
 import re
-import logging
-import datetime
-import json
+import traceback
 from pathlib import Path
-from typing import Dict, List, Callable, Union, Any
+from typing import Dict, List, Callable, Union
 
-from graph_of_thoughts.operations import Thought
-from graph_of_thoughts import controller, language_models, operations, prompter, parser
 import project_utils as project
 from bbh_tasks import BBHTask as BBH_Tasks
+from graph_of_thoughts import controller, language_models, operations, prompter, parser
+from graph_of_thoughts.operations import Thought
 
 
 def extract_answer(text: str):
@@ -17,6 +17,32 @@ def extract_answer(text: str):
     if match:
         return match.group(1)
     return None
+
+
+def extract_step(text: str):
+    match = re.search(r'<Step>(.*?)<\/Step>', text)
+    if match:
+        return match.group(1)
+    return None
+
+
+min_score = 1
+max_score = 5
+scoring_range = range(min_score, max_score + 1)
+
+
+def extract_score(score_range: range, text: str):
+    match = re.search(r'<Score>(.*?)<\/Score>', text)
+    if match:
+        try:
+            score_val = int(match.group(1))
+            if score_val in range(1, 5):
+                return score_val
+            else:
+                logging.warning(f"Scored value is not in the range of {scoring_range} for response {text}")
+        except ValueError:
+            logging.warning(f"Unable to parse score from response {text}, returning 0 as score")
+    return 0.0
 
 
 def score_answers_by_frequency(thoughts: List[Thought]) -> List[Thought]:
@@ -58,10 +84,45 @@ class BigBenchHardPrompter(prompter.Prompter):
 
     answer_prompt = """<Answer>{answer}</Answer>"""
 
+    # Zero Shot COT from Kojima et al. (2022)
     cot_zeroshot_prompt = f"""<Instruction> {{instruction}} </Instruction>
     
     <Input> {{input}} </Input>
     Let us think Step by Step, then provide the answer in this format: {answer_prompt}"""
+
+    tot_generate_prompt = """<Instruction> {instruction} </Instruction>
+    <Input>{input}</Input>
+    give a possible intermediate step towards the solution in the format: <Step>intermediate solution</Step>
+    """
+
+    tot_vote_step_prompt = f"""Given the question <Input>{{input}}</Input>
+    Score the given intermediate step from {min_score} to {max_score} and give the score in the format <Score>score</Score> 
+    <Step>{{step}}</Step>
+    """
+
+    tot_vote_final_prompt = f"""Given the question <Input>{{input}}</Input>
+        Score the given answer from {min_score} to {max_score} and give the score in the format <Score>score</Score> 
+        <Answer>{{answer}}</Answer>
+        """
+
+    tot_final_prompt = f"""Given the question <Input>{{input}}</Input> and the intermediate solution <Step>{{step}}</Step>, 
+    provide the answer in this format: <Answer>answer</Answer>"""
+
+    instruction_prefix = """<Instruction> {instruction} </Instruction> 
+    "<Input> {input} </Input>
+    """
+
+    # The Plan and Solve Prompt from Wang et al. (2023)
+    plan_solve_basic_prompt = "Let's first understand the problem and devise a plan to solve the problem. " \
+                              "Then, let's carry out the plan to solve the problem step by step. " \
+                              "Give the final answer in this format: <Answer>answer</Answer>"
+
+    # The Plan and Solve Plus Prompt from Wang et al. (2023)
+    plan_solve_plus_prompt = "Let's first understand the problem, extract relevant variables and their corresponding numerals, " \
+                             "and make and devise a complete plan. Then, let's carry out the plan, calculate intermediate variables " \
+                             "(pay attention to correct numerical calculation and commonsense), " \
+                             "solve the problem step by step, and show the answer. " \
+                             "Give the final answer in this format: <Answer>answer</Answer>"
 
     def __init__(self, task: str):
         """
@@ -94,6 +155,7 @@ class BigBenchHardPrompter(prompter.Prompter):
 
         prompt_path = project.datasets_dir() / "BIG-Bench-Hard" / "cot-prompts" / f"{self.task}.txt"
         full_prompt: str = ""
+        logging.info(f"generate_prompt: method {method}")
         with open(prompt_path, "r") as f:
             for _ in range(2):  # to skip canary warning
                 f.readline()
@@ -104,10 +166,12 @@ class BigBenchHardPrompter(prompter.Prompter):
                 answers.append(example.split("So the answer is ")[-1].removesuffix("."))  # extract answer from example
             full_examples: List[str] = []
             for i, example in enumerate(examples):
-                if method.startswith("io"):
+                if method.startswith("io") or method.startswith("plan_solve"):
                     full_examples.append(example.split("\nA: ")[0])  # remove steps for IO
                 elif method.startswith("cot"):
                     full_examples.append(example)
+                elif method.startswith("tot"):
+                    full_examples = []
                 else:
                     raise ValueError(f"generate_prompt: Unknown method: {method}")
 
@@ -117,17 +181,27 @@ class BigBenchHardPrompter(prompter.Prompter):
                 full_prompt = self.io_prompt.format(instruction=f"{self.sys_prompt}\n{prompt}",
                                                     examples="\n".join(full_examples),
                                                     input=input_str)
-            elif method == "cot" or "cot_sc":
+            elif method == "cot" or method == "cot_sc":
                 full_prompt = self.io_prompt.format(instruction=f"{self.sys_prompt}\n{prompt}",
                                                     examples="\n".join(full_examples),
                                                     input=input_str)
             elif method == "cot_zeroshot":
                 full_prompt = self.cot_zeroshot_prompt.format(instruction=f"{self.sys_prompt}\n{prompt}",
                                                               input=input_str)
+            elif method.startswith("tot"):
+                if current is None or current == "":
+                    full_prompt = self.tot_generate_prompt.format(instruction=f"{self.sys_prompt}\n{prompt}",
+                                                                  input=input_str)
+                else:
+                    full_prompt = self.tot_final_prompt.format(input=original, step=input_str)
+            elif method == "plan_solve":
+                full_prompt = self.instruction_prefix.format(instruction=f"{self.sys_prompt}\n{prompt}", input=input_str)+self.plan_solve_basic_prompt
+            elif method == "plan_solve_plus":
+                full_prompt = self.instruction_prefix.format(instruction=f"{self.sys_prompt}\n{prompt}", input=input_str)+self.plan_solve_plus_prompt
             else:
                 raise ValueError(f"generate_prompt: Unknown method: {method}")
 
-        logging.info("full prompt: %s", full_prompt)
+        logging.info("generate_prompt: full prompt: %s", full_prompt)
         return full_prompt
 
     def aggregation_prompt(self, state_dicts: List[Dict], **kwargs) -> str:
@@ -137,7 +211,16 @@ class BigBenchHardPrompter(prompter.Prompter):
         pass
 
     def score_prompt(self, state_dicts: List[Dict], **kwargs) -> str:
-        pass
+        thoughts: List[Thought] = [state_dict["current"] for state_dict in state_dicts]
+        inputs = [state_dict["original"] for state_dict in state_dicts]
+        logging.info("score_prompt st_dicts: %s", json.dumps(state_dicts))
+        final_prompt = ""
+        if (state_dicts[0]["phase"] < 2):
+            final_prompt = self.tot_vote_step_prompt.format(step=thoughts[0], input=inputs[0])
+        else:
+            final_prompt = self.tot_vote_final_prompt.format(answer=thoughts[0], input=inputs[0])
+        logging.info("score_prompt: final prompt: %s", final_prompt)
+        return final_prompt
 
     def validation_prompt(self, **kwargs) -> str:
         pass
@@ -163,7 +246,9 @@ class BigBenchHardParser(parser.Parser):
         """
         new_states = []
         for text in texts:
-            if state["method"].startswith("io") or state["method"].startswith("cot"):
+            if (state["method"].startswith("io")
+                    or state["method"].startswith("cot")
+                    or state["method"].startswith("plan_solve")):
                 answer_str = extract_answer(text)
                 if answer_str is None:
                     logging.warning(
@@ -173,6 +258,32 @@ class BigBenchHardParser(parser.Parser):
                 new_state["current"] = answer_str
                 new_state["phase"] = 2
                 new_states.append(new_state)
+            elif state["method"].startswith("tot"):
+                if state["phase"] == 0:
+                    logging.info("parse_generate_answer: tot phase 0: extracting step")
+                    step_str = extract_step(text)
+                    if step_str is None:
+                        logging.warning(
+                            f"parse_generate_answer: tot: Could not parse step: {text}. Returning None."
+                        )
+                    new_state = state.copy()
+                    new_state["current"] = step_str
+                    new_state["phase"] = 1
+                    new_states.append(new_state)
+                elif state["phase"] == 1:
+                    logging.info("parse_generate_answer: tot: phase 1: extracting answer")
+                    answer_str = extract_answer(text)
+                    if answer_str is None:
+                        logging.warning(
+                            f"parse_generate_answer: tot: Could not parse final answer: {text}. Returning None."
+                        )
+                    new_state = state.copy()
+                    new_state["current"] = answer_str
+                    new_state["phase"] = 2
+                    new_states.append(new_state)
+                else:
+                    raise ValueError(f"parse_generate_answer: tot generate_prompt: Unknown phase: {state['phase']}")
+
             else:
                 raise ValueError(f"parse_generate_answer: Unknown method: {state['method']}")
         return new_states
@@ -186,8 +297,11 @@ class BigBenchHardParser(parser.Parser):
     def parse_validation_answer(self, response: str, **kwargs) -> bool:
         pass
 
-    def parse_score_answer(self, response: str, **kwargs) -> List[float]:
-        pass
+    def parse_score_answer(self, states: List[Dict], responses: List[str], **kwargs) -> List[float]:
+        logging.info("parse_score_answer: responses: %s", responses)
+        scores: List[float] = [float(extract_score(scoring_range, response)) for response in responses]
+        logging.info("parse_score_answer: scores: %s", scores)
+        return scores
 
 
 def io() -> operations.GraphOfOperations:
@@ -248,9 +362,41 @@ def cot_sc() -> operations.GraphOfOperations:
     generate_operation = operations.Generate(1, num_branches)
     operations_graph.append_operation(generate_operation)
     operations_graph.append_operation(
-        operations.Selector(selector=score_answers_by_frequency))  # have to do this less than ideal implementation
+        # operations.Selector(selector=score_answers_by_frequency)  # have to do this less than ideal implementation
+        operations.ScoreByFrequency(ignore_none=True)
+    )
     # due to issues with existing scoring function, might be better to refactor
     operations_graph.append_operation(operations.KeepBestN(1))
+    operations_graph.append_operation(operations.GroundTruth(test_answer))
+
+    return operations_graph
+
+
+def plan_solve() -> operations.GraphOfOperations:
+    """
+         Generates the Graph of Operations for the Plan and Solve method.
+
+         :return: Graph of Operations
+         :rtype: GraphOfOperations
+         """
+    operations_graph = operations.GraphOfOperations()
+
+    operations_graph.append_operation(operations.Generate(1, 1))
+    operations_graph.append_operation(operations.GroundTruth(test_answer))
+
+    return operations_graph
+
+
+def plan_solve_plus() -> operations.GraphOfOperations:
+    """
+         Generates the Graph of Operations for the Plan and Solve Plus method.
+
+         :return: Graph of Operations
+         :rtype: GraphOfOperations
+         """
+    operations_graph = operations.GraphOfOperations()
+
+    operations_graph.append_operation(operations.Generate(1, 1))
     operations_graph.append_operation(operations.GroundTruth(test_answer))
 
     return operations_graph
@@ -263,7 +409,19 @@ def tot() -> operations.GraphOfOperations:
      :return: Graph of Operations
      :rtype: GraphOfOperations
      """
-    raise NotImplementedError("Not Implemented")
+    num_branches = 3
+    keep_best = 2
+
+    operations_graph = operations.GraphOfOperations()
+
+    operations_graph.append_operation(operations.Generate(1, num_branches).named("Generate Intermediate Step"))
+    operations_graph.append_operation(operations.Score().named("Score Intermediate Step"))
+    operations_graph.append_operation(operations.KeepBestN(keep_best).named("Keep Best Intermediate Steps"))
+    operations_graph.append_operation(operations.Generate(1, 1).named("Generate Answers Based on Intermediate Step"))
+    operations_graph.append_operation(operations.Score().named("Score Answers"))
+    operations_graph.append_operation(operations.KeepBestN(1).named("Keep Best Answer"))
+    operations_graph.append_operation(operations.GroundTruth(test_answer).named("Evaluate GroundTruth"))
+    return operations_graph
 
 
 def run(
@@ -306,7 +464,7 @@ def run(
             task_data = json.load(f)[
                 "examples"]  # we load the entire json at once as it seems the files are not too big.
             for id, example in enumerate(task_data):
-                if id >= samples_per_task: # end evaluation when samples limit is reached
+                if id >= samples_per_task:  # end evaluation when samples limit is reached
                     break
                 for method in methods:
                     method_results_dir = task_results_dir / method.__name__
@@ -343,6 +501,7 @@ def run(
                         executor.run()
                     except Exception as e:
                         logging.error(f"Exception: {e}")
+                        logging.error("Trace: {}".format(traceback.format_exc()))
                     output_path: Path = method_results_dir / f"{id}.json"
                     executor.output_graph(str(output_path))
                     budget -= lm.cost
@@ -352,10 +511,16 @@ def run(
 
 if __name__ == "__main__":
     budget = 30
-    samples = 1
-    approaches = [io, cot, cot_zeroshot, cot_sc]
+    samples = 10
+    approaches = [cot_sc]
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s,%(msecs)03d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s',
+        datefmt='%Y-%m-%d:%H:%M:%S'
+    )
+
     tasks = [task.value for task in [
-        BBH_Tasks.BOOLEAN_EXPRESSIONS
+        BBH_Tasks.GEOMETRIC_SHAPES
     ]]
 
     spent = run(samples, approaches, budget, "llama3-8b-ollama", tasks)
