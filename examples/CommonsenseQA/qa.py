@@ -456,7 +456,7 @@ def run(
 if __name__ == "__main__":
     budget = 30
     samples = [item for item in range(10)]
-    approaches = [cot_zeroshot]
+    approaches = [io, cot_zeroshot]
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s,%(msecs)03d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s',
