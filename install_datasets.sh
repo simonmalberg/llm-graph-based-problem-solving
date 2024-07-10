@@ -1,17 +1,17 @@
 # mkdir datasets
 cd datasets
 
-# # Clone the  grade-school-math repository
-# git clone https://github.com/openai/grade-school-math.git
+# Clone the  grade-school-math repository
+git clone https://github.com/openai/grade-school-math.git
 
-# # Clone the BigBench Hard Repository
-# git clone https://github.com/suzgunmirac/BIG-Bench-Hard.git
+# Clone the BigBench Hard Repository
+git clone https://github.com/suzgunmirac/BIG-Bench-Hard.git
 
-# # Download the CommonSenseQA Dataset
-# mkdir CommonSenseQA
-# curl -O https://s3.amazonaws.com/commensenseqa/train_rand_split.jsonl --output-dir CommonSenseQA/
+# Download the CommonSenseQA Dataset
+mkdir CommonSenseQA
+curl -O https://s3.amazonaws.com/commensenseqa/train_rand_split.jsonl --output-dir CommonSenseQA/
 
-# Download the HotpotQA Dataset
+# Download the HotpotQA Wiki Dump
 mkdir HotpotQA
 
 curl -O https://nlp.stanford.edu/projects/hotpotqa/enwiki-20171001-pages-meta-current-withlinks-abstracts.tar.bz2 --output-dir HotpotQA/
@@ -32,3 +32,7 @@ tar -xjvf enwiki-20171001-pages-meta-current-withlinks-abstracts.tar.bz2
 # clean up
 rm enwiki-20171001-pages-meta-current-withlinks-abstracts.tar.bz2
 cd ..
+
+# Download the HotpotQA Test and Dev sets
+curl -O http://curtis.ml.cmu.edu/datasets/hotpot/hotpot_dev_fullwiki_v1.json --output-dir HotpotQA/
+curl -O http://curtis.ml.cmu.edu/datasets/hotpot/hotpot_test_fullwiki_v1.json --output-dir HotpotQA/

@@ -35,6 +35,7 @@ class OperationType(Enum):
     ground_truth_evaluator: int = 7
     selector: int = 8
     graph_builder: int = 9
+    retrieve: int = 10
 
 
 class Operation(ABC):
@@ -514,6 +515,12 @@ class GraphBuilder(Operation):
 
     def _execute(self, lm: AbstractLanguageModel, prompter: Prompter, parser: Parser, **kwargs) -> None:
         pass
+
+
+class Retrieve(Operation):
+    """"
+    Operation to retrieve thoughts.
+    """
 
     
 class Improve(Operation):
