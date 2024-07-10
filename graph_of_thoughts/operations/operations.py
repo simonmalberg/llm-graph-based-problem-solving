@@ -508,11 +508,9 @@ class GraphBuilder(Operation):
     operation_type: OperationType = OperationType.graph_builder
 
     def _execute(self, lm: AbstractLanguageModel, prompter: Prompter, parser: Parser, **kwargs) -> None:
-        
+        pass
 
     
-
-
 class Improve(Operation):
     """
     Operation to improve thoughts.

@@ -369,7 +369,7 @@ def run(
 if __name__ == "__main__":
     budget = 30
     samples = [item for item in range(10)]
-    approaches = [io,cot,tot]
+    approaches = [io,cot]
 
 
     spent = run(samples, approaches, budget, "chatgpt")
