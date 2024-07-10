@@ -27,6 +27,9 @@ transformers = "^4.31.0"
 accelerate = "^0.21.0"
 bitsandbytes = "^0.41.0"
 scipy = "^1.10.1"
+elasticsearch = "^8.14.0"
+flask = "^3.0.3"
+flask-cors = "^4.0.1"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
