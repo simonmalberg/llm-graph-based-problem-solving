@@ -26,11 +26,11 @@ class GSM8KPlotter(BaseResultPlotter):
 if __name__ == "__main__":
     doc_plotter = GSM8KPlotter(
         # result_directory=Path(__file__).parent / "results" / "llama3-8b-ollama_io-cot_2024-06-12_14-50-52",
-        result_directory=Path(__file__).parent / "results" / "gpt-3.5-2024-07-10",
+        result_directory=Path(__file__).parent / "results" / "chatgpt_io-cot-cot_zeroshot-cot_sc-plan_solve-plan_solve_plus-tot_base-tot_style_2024-07-10_20-03-07",
         config=Config(
             
             methods_order=["io","cot", "cot_zeroshot","cot_sc", "plan_solve","plan_solve_plus","tot_base","tot_style"],
-            methods_labels=["IO", "CoT-SC"],
+            methods_labels=["io","cot", "cot_zero","cot_sc", "plan_solve","ps_plus","tot_base","tot_style"],
             y_lower=0,
             y_upper=2,
             cost_upper=1,
@@ -45,4 +45,5 @@ if __name__ == "__main__":
             fig_fontsize=14,
         )
         )
+
     doc_plotter.plot_results()
