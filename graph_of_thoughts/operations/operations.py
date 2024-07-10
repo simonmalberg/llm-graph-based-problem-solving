@@ -54,6 +54,7 @@ class Operation(ABC):
         self.predecessors: List[Operation] = []
         self.successors: List[Operation] = []
         self.executed: bool = False
+        self.display_name: str = self.operation_type.name
 
     def can_be_executed(self) -> bool:
         """
@@ -78,6 +79,10 @@ class Operation(ABC):
         ]
 
         return previous_thoughts
+
+    def named(self, name: str) -> Operation:
+        self.display_name = name
+        return self
 
     def add_predecessor(self, operation: Operation) -> None:
         """
