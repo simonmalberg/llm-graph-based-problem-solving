@@ -33,6 +33,7 @@ class Config:
     display_solved: bool = True
     annotation_offset: float = 1.0
     aggregate_subtasks: bool = False
+    plot_only_accuracy: bool = False
 
 
 class BaseResultPlotter(ABC):
@@ -131,12 +132,20 @@ class BaseResultPlotter(ABC):
 
         fig, ax = plt.subplots(dpi=150, figsize=self.config.figsize)
         positions = range(1, len(methods_order) + 1)
-        ax.boxplot(scores_ordered, positions=positions, meanline=True, showmeans=True)
         fig_fontsize = self.config.fig_fontsize
+        if self.config.plot_only_accuracy:
+            ax2_width = 0.25
+            ax2_offset = 0.25
+            ax.bar(positions, [sum(scores) / len(scores) for scores in scores_ordered], color="black", alpha=0.5, width=0.25)
+            ax.set_ylim(0, 1)
+        else:
+            ax.boxplot(scores_ordered, positions=positions, meanline=True, showmeans=True)
+            ax.set_ylim(self.config.y_lower, self.config.y_upper)
+            ax2_width = 1
+            ax2_offset = 0
 
         ax.set_xticks(range(1, len(methods_order) + 1))
         ax.set_xticklabels(self.config.methods_labels, fontsize=fig_fontsize)
-        ax.set_ylim(self.config.y_lower, self.config.y_upper)
 
         if self.config.display_left_ylabel:
             ax.set_ylabel(self.config.left_ylabel, fontsize=fig_fontsize)
@@ -147,7 +156,9 @@ class BaseResultPlotter(ABC):
             ax.set_title(f"# correct results out of {len(scores_ordered[0])}")
 
         ax2 = ax.twinx()
-        ax2.bar(positions, total_costs, alpha=0.5, color="blue", label="Total Cost ($)")
+        #add offset to positions:
+        positions = [x + ax2_offset for x in positions]
+        ax2.bar(positions, total_costs, alpha=0.5, color="blue", label="Total Cost ($)", width=ax2_width)
         ax2.yaxis.set_tick_params(colors="#1919ff", labelsize=fig_fontsize)
         if self.config.cost_upper > 0:
             ax2.set_ylim(0, self.config.cost_upper)
