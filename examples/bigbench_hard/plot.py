@@ -1,7 +1,7 @@
 from pathlib import Path
 from examples.base_result_plotter import BaseResultPlotter, Config
 
-class GSM8KPlotter(BaseResultPlotter):
+class BigbenchHardPlotter(BaseResultPlotter):
 
     def process_result(self, result):
         score = 0
@@ -24,9 +24,9 @@ class GSM8KPlotter(BaseResultPlotter):
 
 
 if __name__ == "__main__":
-    doc_plotter = GSM8KPlotter(
+    doc_plotter = BigbenchHardPlotter(
         # result_directory=Path(__file__).parent / "results" / "llama3-8b-ollama_io-cot_2024-06-12_14-50-52",
-        result_directory=Path(__file__).parent / "results" / "llama3-8b-ollama_io-cot-cot_zeroshot-cot_sc-tot-plan_solve-plan_solve_plus_2024-07-10_11-52-49",
+        result_directory=Path(__file__).parent / "results" / "chatgpt_io-cot-cot_zeroshot-cot_sc-tot-plan_solve-plan_solve_plus_2024-07-11_13-21-40",
         config=Config(
             methods_order=["io", "cot", "cot_zeroshot", "cot_sc", "tot", "plan_solve", "plan_solve_plus"],
             methods_labels=["IO", "CoT", "CoT Zero", "CoT SC", "ToT", "P&S", "P&S+"],
