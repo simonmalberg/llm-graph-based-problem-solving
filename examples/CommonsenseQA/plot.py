@@ -26,10 +26,9 @@ class GSM8KPlotter(BaseResultPlotter):
 if __name__ == "__main__":
     doc_plotter = GSM8KPlotter(
         # result_directory=Path(__file__).parent / "results" / "llama3-8b-ollama_io-cot_2024-06-12_14-50-52",
-        result_directory=Path(__file__).parent / "results" / "gpt-3.5-2024-07-10",
+        result_directory=Path(__file__).parent / "results" / "llama3-8b-ollama_io-cot_zeroshot_2024-07-10_13-58-18",
         config=Config(
-            
-            methods_order=["io","cot", "cot_zeroshot","cot_sc", "plan_solve","plan_solve_plus","tot_base","tot_style"],
+            methods_order=["io", "cot_zeroshot"],
             methods_labels=["IO", "CoT-SC"],
             y_lower=0,
             y_upper=2,
@@ -41,8 +40,8 @@ if __name__ == "__main__":
             display_right_ylabel=True,
             left_ylabel="Score (1 or 0); the higher the better",
             right_ylabel="Percentage of total token count",
-            figsize=(10, 5),
-            fig_fontsize=14,
+            figsize=(3.75, 5),
+            fig_fontsize=12,
         )
         )
     doc_plotter.plot_results()
