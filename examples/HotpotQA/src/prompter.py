@@ -17,7 +17,13 @@ class HotpotQAPrompter(prompter.Prompter):
 
 
     def generate_prompt(self, num_branches: int, original: str, current: str, method: str, **kwargs) -> str:
-        pass
+        assert num_branches == 1, "Branching should be done via multiple requests."
+        if current is None or current == "":
+            input = original
+        else:
+            input = current
+        if method.startswith("io"):
+            return self.io_prompt_get_keywords.format(input=input)
 
     def aggregation_prompt(self, state_dicts: List[Dict], **kwargs) -> str:
         pass

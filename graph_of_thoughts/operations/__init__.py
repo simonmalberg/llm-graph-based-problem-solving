@@ -12,4 +12,5 @@ from .operations import (
     Selector,
     GroundTruth,
     Improve,
+    Retrieve
 )

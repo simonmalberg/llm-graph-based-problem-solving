@@ -27,8 +27,9 @@ def io() -> operations.GraphOfOperations:
     operations_graph = operations.GraphOfOperations()
 
     operations_graph.append_operation(operations.Generate(1, 1))
-    operations_graph.append_operation(operations.Score(1, False))
-    # operations_graph.append_operation(operations.GroundTruth(ADD FUNCTION TO UTILS))
+    operations_graph.append_operation(operations.Retrieve(bm25_retriever_save_dir=(datasets_dir() / "HotpotQA" / "wikipedia_index_bm25"), k=5))
+    # another generate process including the keywords and another prompt
+    # groundtruth evaluation
 
     return operations_graph
 
@@ -76,8 +77,8 @@ def run(
         # create a results directory for the method
         os.makedirs(os.path.join(results_folder, method.__name__))
     
-    for data in selected_data:
-        logging.info(f"Running data {data['_id']: }{data['question']}: {data['answer']}")
+    for i, data in enumerate(selected_data):
+        logging.info(f"Running data {i}: {data['question']}: {data['answer']}")
         if budget <= 0.0:
             logging.error(
                 f"Budget has been depleted, stopping. Data {data[0]} has not been run."
@@ -120,7 +121,7 @@ def run(
             path = os.path.join(
                 results_folder,
                 method.__name__,
-                f"{data['id']}.json",
+                f"{i}.json",
             )
             executor.output_graph(path)
             budget -= lm.cost

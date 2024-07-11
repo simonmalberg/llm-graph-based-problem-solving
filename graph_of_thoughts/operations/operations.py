@@ -524,11 +524,12 @@ class Retrieve(Operation):
     """
     operation_type: OperationType = OperationType.retrieve
 
-    def __init__(self, bm25_retriever_save_dir: str, get_keywords_function: Callable[[Dict], List[str]], k: int = 5) -> None:
+    def __init__(self, bm25_retriever_save_dir: str, get_keywords_function: Callable[[Dict], List[str]] = None, k: int = 5) -> None:
         super().__init__()
         self.k = k
-        self.retriever = bm25s.BM25.load(save_dir=bm25_retriever_save_dir, load_corpus=True, mmap=True)
+        self.retriever = bm25s.BM25.load(bm25_retriever_save_dir, load_corpus=True, mmap=True)
         self.get_keywords_function = get_keywords_function
+        self.thoughts: List[Thought] = []
 
     def _execute(self, lm: AbstractLanguageModel, prompter: Prompter, parser: Parser, **kwargs) -> None:
         # previous_thoughts: List[Thought] = self.get_previous_thoughts()
@@ -539,11 +540,14 @@ class Retrieve(Operation):
 
         for thought in self.get_previous_thoughts():
             base_state = thought.state
-            keywords = self.get_keywords_function(base_state)
+            if self.get_keywords_function:
+                keywords = self.get_keywords_function(base_state)
+            else:
+                keywords = base_state["keywords"]
             documents_per_keyword = {}
             for keyword in keywords:
                 keyword_tokenized = bm25s.tokenize(keyword, stopwords="en")
-                documents_per_keyword[keyword] = self.retriever.retrieve(keyword_tokenized, self.k)
+                documents_per_keyword[keyword] = self.retriever.retrieve(keyword_tokenized, k=self.k)
             for new_state in parser.parse_retrieve_answer(base_state, documents_per_keyword):
                 new_state = {**base_state, **new_state}
                 self.thoughts.append(Thought(new_state))
@@ -552,6 +556,15 @@ class Retrieve(Operation):
                     self.thoughts[-1].id,
                     self.thoughts[-1].state,
                     )
+
+    def get_thoughts(self) -> List[Thought]:
+        """
+        Returns the thoughts associated with the operation.
+
+        :return: List of generated thoughts.
+        :rtype: List[Thought]
+        """
+        return self.thoughts
 
     
 class Improve(Operation):

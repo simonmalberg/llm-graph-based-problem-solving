@@ -1,5 +1,6 @@
+import ast
 import logging
-from typing import Dict, List, Union
+from typing import Any, Dict, List, Union
 from graph_of_thoughts import parser
 from . import utils
 
@@ -18,7 +19,24 @@ class HotpotQAParser(parser.Parser):
         self.cache = {}
 
     def parse_generate_answer(self, state: Dict, texts: List[str]) -> Dict:
-        pass
+        new_states = []
+        for text in texts:
+            if state["method"].startswith("io"):
+                new_state = state.copy()
+                if "<Keywords>" in text:
+                    text = text.split("<Keywords>")[1].split("</Keywords>")[0]
+                    try:
+                        keywords_list = ast.literal_eval(text)
+                    except Exception as e:
+                        logging.error(f"Could not parse keywords: {text}")
+                        keywords_list = []
+                    new_state["keywords"] = keywords_list
+                new_state["current"] = text
+                new_state["phase"] = state["phase"] + 1
+                new_states.append(new_state)
+            else:
+                raise ValueError(f"Unknown method: {state['method']}")
+        return new_states
     
     def parse_aggregation_answer(self, response: str, **kwargs) -> Union[Dict, List[Dict]]:
         pass
@@ -31,3 +49,17 @@ class HotpotQAParser(parser.Parser):
 
     def parse_score_answer(self, states: List[Dict], texts: List[str]) -> List[float]:
         pass
+
+    def parse_retrieve_answer(self, state: Dict, documents: Dict[Dict, Any]) -> List[Dict]:
+        new_states = []
+        documents_as_text = ""
+        for key, value in documents.items():
+            documents_as_text += f"Search Term: {key}\nResults\n"
+            for doc in value[0][0]:
+                documents_as_text += f"{doc['title']}\n{doc['text']}\n"
+        new_state = state.copy()
+
+        new_state["current"] = documents_as_text
+        new_state["phase"] = state["phase"] + 1
+        new_states.append(new_state)
+        return new_states
