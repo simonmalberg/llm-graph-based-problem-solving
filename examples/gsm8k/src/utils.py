@@ -2,11 +2,13 @@ import re
 from typing import Dict
 
 
-def strip_int_result(text: str, method: str = "not_io") -> int:
-        if method.startswith("io"):
+def strip_int_result(text: str, method: str = "not_io", is_groundtruth: bool = False) -> int:
+        if is_groundtruth:
+            match = re.search(r'#### (\d+).*', text, re.DOTALL)
+        elif method.startswith("io"):
             match = re.search(r'(\d+).*', text, re.DOTALL)
         else:
-            match = re.search(r'#### (\d+).*', text, re.DOTALL)
+            match = re.search(r'<Answer>(\d+)</Answer>', text, re.DOTALL)
         if match:
             return int(match.group(1))
         return None
