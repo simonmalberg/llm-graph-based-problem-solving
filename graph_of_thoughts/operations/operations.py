@@ -13,6 +13,7 @@ from enum import Enum
 from typing import List, Iterator, Dict, Callable, Union
 from abc import ABC, abstractmethod
 import itertools
+import bm25s
 
 from graph_of_thoughts.operations.thought import Thought
 from graph_of_thoughts.language_models import AbstractLanguageModel
@@ -519,8 +520,38 @@ class GraphBuilder(Operation):
 
 class Retrieve(Operation):
     """"
-    Operation to retrieve thoughts.
+    Operation to retrieve data from elastic.
     """
+    operation_type: OperationType = OperationType.retrieve
+
+    def __init__(self, bm25_retriever_save_dir: str, get_keywords_function: Callable[[Dict], List[str]], k: int = 5) -> None:
+        super().__init__()
+        self.k = k
+        self.retriever = bm25s.BM25.load(save_dir=bm25_retriever_save_dir, load_corpus=True, mmap=True)
+        self.get_keywords_function = get_keywords_function
+
+    def _execute(self, lm: AbstractLanguageModel, prompter: Prompter, parser: Parser, **kwargs) -> None:
+        # previous_thoughts: List[Thought] = self.get_previous_thoughts()
+
+        assert (
+            len(self.predecessors) > 0
+        ), "Retrieve operation needs at least one predecessor"
+
+        for thought in self.get_previous_thoughts():
+            base_state = thought.state
+            keywords = self.get_keywords_function(base_state)
+            documents_per_keyword = {}
+            for keyword in keywords:
+                keyword_tokenized = bm25s.tokenize(keyword, stopwords="en")
+                documents_per_keyword[keyword] = self.retriever.retrieve(keyword_tokenized, self.k)
+            for new_state in parser.parse_retrieve_answer(base_state, documents_per_keyword):
+                new_state = {**base_state, **new_state}
+                self.thoughts.append(Thought(new_state))
+                self.logger.debug(
+                    "New thought %d created with state %s",
+                    self.thoughts[-1].id,
+                    self.thoughts[-1].state,
+                    )
 
     
 class Improve(Operation):
