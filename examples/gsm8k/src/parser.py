@@ -40,6 +40,16 @@ class GSM8KParser(parser.Parser):
                 new_state["current"] = int_answer
                 new_state["phase"] = 2
                 new_states.append(new_state)
+            elif state["method"] == "tot":
+                if state["phase"] < 2:
+                    new_state = state.copy()
+                    new_state["current"] = text
+                    new_state["phase"] = 2
+                    new_states.append(new_state)
+                else:
+                    new_state = state.copy()
+                    new_state["current"] = utils.strip_int_result(text, state["method"])
+                    new_states.append(new_state)
             else:
                 raise ValueError(f"Unknown method: {state['method']}")
         return new_states
