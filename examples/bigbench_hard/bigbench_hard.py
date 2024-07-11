@@ -7,7 +7,10 @@ from pathlib import Path
 from typing import Dict, List, Callable, Union
 
 import project_utils as project
-from bbh_tasks import BBHTask as BBH_Tasks
+try:
+    from .bbh_tasks import BBHTask as BBH_Tasks
+except ImportError:
+    from bbh_tasks import BBHTask as BBH_Tasks
 from graph_of_thoughts import controller, language_models, operations, prompter, parser
 from graph_of_thoughts.operations import Thought
 
@@ -63,8 +66,8 @@ def score_answers_by_frequency(thoughts: List[Thought]) -> List[Thought]:
 
 def test_answer(state: Dict) -> bool:
     logging.debug(f"\nground truth: {state['ground_truth']}\n current_answer: {state['current']}")
-    ground_truth = state["ground_truth"]
-    current_answer = state["current"]
+    ground_truth = state["ground_truth"].strip().lower()
+    current_answer = state["current"].strip().lower()
     return ground_truth == current_answer
 
 
@@ -85,10 +88,10 @@ class BigBenchHardPrompter(prompter.Prompter):
     answer_prompt = """<Answer>{answer}</Answer>"""
 
     # Zero Shot COT from Kojima et al. (2022)
-    cot_zeroshot_prompt = f"""<Instruction> {{instruction}} </Instruction>
+    cot_zeroshot_prompt = """<Instruction> {instruction} </Instruction>
     
-    <Input> {{input}} </Input>
-    Let us think Step by Step, then provide the answer in this format: {answer_prompt}"""
+    <Input> {input} </Input>
+    Let us think Step by Step, then provide the answer in this format: <Answer>answer</Answer>"""
 
     tot_generate_prompt = """<Instruction> {instruction} </Instruction>
     <Input>{input}</Input>
@@ -105,7 +108,7 @@ class BigBenchHardPrompter(prompter.Prompter):
         <Answer>{{answer}}</Answer>
         """
 
-    tot_final_prompt = f"""Given the question <Input>{{input}}</Input> and the intermediate solution <Step>{{step}}</Step>, 
+    tot_final_prompt = """Given the question <Input>{input}</Input> and the intermediate solution <Step>{step}</Step>, 
     provide the answer in this format: <Answer>answer</Answer>"""
 
     instruction_prefix = """<Instruction> {instruction} </Instruction> 
@@ -511,8 +514,9 @@ def run(
 
 if __name__ == "__main__":
     budget = 30
-    samples = 10
-    approaches = [cot_sc]
+    samples = 3
+    approaches = [io, cot, cot_zeroshot, cot_sc, tot, plan_solve, plan_solve_plus]
+    # approaches = [tot]
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s,%(msecs)03d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s',
@@ -520,7 +524,8 @@ if __name__ == "__main__":
     )
 
     tasks = [task.value for task in [
-        BBH_Tasks.GEOMETRIC_SHAPES
+        BBH_Tasks.BOOLEAN_EXPRESSIONS,
+        BBH_Tasks.DYCK_LANGUAGES,
     ]]
 
     spent = run(samples, approaches, budget, "llama3-8b-ollama", tasks)
