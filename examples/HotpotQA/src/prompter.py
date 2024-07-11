@@ -9,6 +9,12 @@ class HotpotQAPrompter(prompter.Prompter):
     Inherits from the Prompter class and implements its abstract methods.
     """
 
+    io_prompt_get_keywords = """\
+    <Instruction> Give me a list of keywords for a wikipedia lookup to be able to answer this question. Give the keywords in the following format: give the score in the format <Keywords>["keyword1", "keyword2"]</Keywords>.</Instruction>
+    <Question>{input}</Question>
+    Output: 
+    """
+
 
     def generate_prompt(self, num_branches: int, original: str, current: str, method: str, **kwargs) -> str:
         pass
