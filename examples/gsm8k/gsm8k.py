@@ -63,15 +63,15 @@ def tot() -> operations.GraphOfOperations:
         :return: Graph of Operations
         :rtype: GraphOfOperations
         """
-    num_branches = 5
+    num_branches = 1
     operations_graph = operations.GraphOfOperations()
     # Phase 1: setting up the equations
-    operations_graph.append_operation(operations.Generate(1, num_branches))
-    operations_graph.append_operation(operations.Score())
+    operations_graph.append_operation(operations.Generate(1, num_branches).named("Generate Setup"))
+    operations_graph.append_operation(operations.Score().named("Score Setup"))
     operations_graph.append_operation(operations.KeepBestN(1))
     # Phase 2: calculating the final results
-    operations_graph.append_operation(operations.Generate(1, num_branches))
-    operations_graph.append_operation(operations.Score())
+    operations_graph.append_operation(operations.Generate(1, num_branches).named("Generate Final Answer"))
+    operations_graph.append_operation(operations.Score().named("Score Final Answer"))
     operations_graph.append_operation(operations.KeepBestN(1))
 
     operations_graph.append_operation(operations.GroundTruth(utils.test_answer))
@@ -179,7 +179,7 @@ def run(
 if __name__ == "__main__":
     budget = 30
     samples = [item for item in range(5)]
-    approaches = [io, cot, cotsc, plan_and_solve, tot]
+    approaches = [tot]
 
     logging.basicConfig(level=logging.INFO)
 

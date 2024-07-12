@@ -254,9 +254,10 @@ class GSM8KPrompter(prompter.Prompter):
     def score_prompt(self, state_dicts: List[Dict], **kwargs) -> str:
         method = state_dicts[0]["method"]
         phase = state_dicts[0]["phase"]
+        logging.info("score_prompt: phase = {}".format(phase))
         full_prompt = ""
         if method == "tot":
-            if phase < 2:
+            if phase < 3:
                 full_prompt = self.tot_initial_vote.format(input=state_dicts[0]["original"], setup=state_dicts[0]["current"])
             else:
                 full_prompt = self.tot_final_vote.format(input=state_dicts[0]["original"], solution=state_dicts[0]["current"])
