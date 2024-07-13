@@ -2,6 +2,9 @@ import logging
 from typing import Dict, List, Union
 from graph_of_thoughts import parser
 from . import utils
+import re
+
+
 
 
 class GSM8KParser(parser.Parser):
@@ -30,7 +33,9 @@ class GSM8KParser(parser.Parser):
         """
         new_states = []
         for text in texts:
-            if state["method"].startswith("io") or state["method"].startswith("cot") or state["method"].startswith("plan_and_solve"):
+            logging.info(f"parse_generate_answer: {text}")
+            if state["method"].startswith("io") or state["method"].startswith("cot") or state["method"].startswith(
+                    "plan_and_solve"):
                 int_answer = utils.strip_int_result(text, state["method"])
                 if int_answer is not None:
                     logging.warning(
@@ -40,10 +45,22 @@ class GSM8KParser(parser.Parser):
                 new_state["current"] = int_answer
                 new_state["phase"] = 2
                 new_states.append(new_state)
+            elif state["method"] == "tot":
+                logging.info("parse_generate_answer: phase = {}".format(state["phase"]))
+                if state["phase"] < 2:
+                    new_state = state.copy()
+                    new_state["current"] = text
+                    new_state["phase"] = 2
+                    new_states.append(new_state)
+                else:
+                    new_state = state.copy()
+                    new_state["phase"] = 3
+                    new_state["current"] = utils.extract_int_answer(text)
+                    new_states.append(new_state)
             else:
                 raise ValueError(f"Unknown method: {state['method']}")
         return new_states
-    
+
     def parse_aggregation_answer(self, response: str, **kwargs) -> Union[Dict, List[Dict]]:
         pass
 
@@ -55,10 +72,18 @@ class GSM8KParser(parser.Parser):
 
     def parse_score_answer(self, states: List[Dict], texts: List[str]) -> List[float]:
         assert len(states) == 1, "Scoring multiple states is not implemented."
-        score = []
         for text in texts:
-            if "True" in text and "False" not in text:
-                score.append(1.0)
-            else:
-                score.append(0.0)
-        return score
+            logging.info(f"parse_score_answer: {text}")
+        method = states[0]["method"]
+        if method == "tot":
+            scores: List[float] = [float(utils.extract_score(10, text)) for text in texts]
+            logging.info("parse_score_answer: scores: %s", scores)
+            return scores
+        else:
+            score = []
+            for text in texts:
+                if "True" in text and "False" not in text:
+                    score.append(1.0)
+                else:
+                    score.append(0.0)
+            return score

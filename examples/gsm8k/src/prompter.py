@@ -1,3 +1,4 @@
+import logging
 from typing import Dict, List
 from graph_of_thoughts import prompter
 
@@ -95,6 +96,72 @@ class GSM8KPrompter(prompter.Prompter):
     <Input>{input}</Input>
     Output: """
 
+
+    tot_initial_prompt = """
+    <Instruction> For the following math problems, list the variables mentioned in the question, and then formulate the \
+    equations required to arrive at the solution.
+    <Example>
+    Input: Julie is reading a 120-page book. Yesterday, she was able to read 12 pages and today, she read twice as many pages as yesterday. If she wants to read half of the remaining pages tomorrow, how many pages should she read?
+    Output:
+    total_pages = 120
+    pages_yesterday = 12
+    pages_today = 2 * pages_yesterday
+    remaining_pages = total_pages - (pages_yesterday + pages_today) = total_pages - (3 * pages_yesterday)
+    answer = pages_tomorrow = remaining_pages / 2 = (total_pages - (3 * pages_yesterday)) / 2
+    </Example>
+    </Instruction>
+    
+    Input: {input}
+    Output: """
+
+    tot_initial_vote = """
+    <Instruction> For the given question, the variables and equations required to arrive at the solution are listed. Score the formulation between 1 - 10
+    based on the confidence you have on the correctness of the values and the steps.
+    <Example>
+    Input: Julie is reading a 120-page book. Yesterday, she was able to read 12 pages and today, she read twice as many pages as yesterday. If she wants to read half of the remaining pages tomorrow, how many pages should she read?
+    Setup: 
+    total_pages = 120
+    pages_yesterday = 12
+    pages_today = 2 * pages_yesterday
+    remaining_pages = total_pages - (pages_yesterday + pages_today) = total_pages - (3 * pages_yesterday)
+    answer = pages_tomorrow = remaining_pages / 2 = (total_pages - (3 * pages_yesterday)) / 2
+    Output:
+    <Score>9</Score>
+    </Example>
+    </Instruction>
+    Input: {input}
+    Setup: {setup}
+    Output: """
+
+    tot_solve_prompt = """
+    <Instruction> Given the following variables and formulae, solve for the answer and give the integer solution in this format: <Answer>answer</Answer>.
+    <Example>
+    Input: total_pages = 120
+    pages_yesterday = 12
+    pages_today = 2 * pages_yesterday
+    remaining_pages = total_pages - (pages_yesterday + pages_today) = total_pages - (3 * pages_yesterday)
+    answer = pages_tomorrow = remaining_pages / 2 = (total_pages - (3 * pages_yesterday)) / 2
+    
+    Output:
+    answer = (total_pages - (3 * pages_yesterday)) / 2 = (120 - (3*12))/2 = 42
+    <Answer>42</Answer>
+    </Example>
+    </Instruction>
+    Input: {input}
+    Output: """
+
+    tot_final_vote = """
+    <Instruction> Given the following problem and solution, Score the answer between 1 - 10 based on the confidence you have on the correctness of the values and the steps.
+    <Example>
+    Input: Julie is reading a 120-page book. Yesterday, she was able to read 12 pages and today, she read twice as many pages as yesterday. If she wants to read half of the remaining pages tomorrow, how many pages should she read?
+    Solution: answer = (total_pages - (3 * pages_yesterday)) / 2 = (120 - (3*12))/2 = 42
+    Output: <Score>9</Score>
+    </Example>
+    
+    Input: {input}
+    Solution: {solution}
+    Output: """
+
     def generate_prompt(self, num_branches: int, original: str, current: str, method: str, **kwargs) -> str:
         """
         Generate a generate prompt for the language model.
@@ -117,11 +184,12 @@ class GSM8KPrompter(prompter.Prompter):
             input = original
         else:
             input = current
-        
+
+        full_prompt = ""
         if method.startswith("io"):
-            return self.io_prompt_base.format(input=input)
+            full_prompt =  self.io_prompt_base.format(input=input)
         elif method.startswith("cot"):
-            return self.cot_prompt_base.format(input=input)
+            full_prompt =  self.cot_prompt_base.format(input=input)
         elif method.startswith("plan_and_solve"):
             if method.endswith("basic"):
                 return self.plan_and_solve_prompt_base.format(input=input, plan_and_solve_prompt=self.plan_solve_basic_prompt)
@@ -129,15 +197,33 @@ class GSM8KPrompter(prompter.Prompter):
                 return self.plan_and_solve_prompt_base.format(input=input, plan_and_solve_prompt=self.plan_solve_plus_prompt)
             else:
                 raise ValueError(f"Unknown method: {method}")
+        elif method == "tot":
+            if current is None or current == "":
+                full_prompt = self.tot_initial_prompt.format(input=input)
+            else:
+                full_prompt = self.tot_solve_prompt.format(input=input)
         else:
             raise ValueError(f"Unknown method: {method}")
-        
+        logging.info("full_prompt: {}".format(full_prompt))
+        return full_prompt
 
     def aggregation_prompt(self, state_dicts: List[Dict], **kwargs) -> str:
         pass
 
     def score_prompt(self, state_dicts: List[Dict], **kwargs) -> str:
-        raise NotImplementedError("Scoring is not implemented for GSM8K.")
+        method = state_dicts[0]["method"]
+        phase = state_dicts[0]["phase"]
+        logging.info("score_prompt: phase = {}".format(phase))
+        full_prompt = ""
+        if method == "tot":
+            if phase < 3:
+                full_prompt = self.tot_initial_vote.format(input=state_dicts[0]["original"], setup=state_dicts[0]["current"])
+            else:
+                full_prompt = self.tot_final_vote.format(input=state_dicts[0]["original"], solution=state_dicts[0]["current"])
+        else:
+            raise ValueError(f"Scoring not implemented for method: {method}")
+        logging.info("full_prompt: {}".format(full_prompt))
+        return full_prompt
 
     def improve_prompt(self, **kwargs) -> str:
         pass

@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 from typing import List, Callable
 from graph_of_thoughts import controller, language_models, operations
+import project_utils as project
 
 try:
     from .src.prompter import GSM8KPrompter
@@ -57,6 +58,28 @@ def cotsc() -> operations.GraphOfOperations:
 
     return operations_graph
 
+
+def tot() -> operations.GraphOfOperations:
+    """
+        Generates the Graph of Operations for the ToT method.
+
+        :return: Graph of Operations
+        :rtype: GraphOfOperations
+        """
+    num_branches = 1
+    operations_graph = operations.GraphOfOperations()
+    # Phase 1: setting up the equations
+    operations_graph.append_operation(operations.Generate(1, num_branches).named("Generate Setup"))
+    operations_graph.append_operation(operations.Score().named("Score Setup"))
+    operations_graph.append_operation(operations.KeepBestN(1))
+    # Phase 2: calculating the final results
+    operations_graph.append_operation(operations.Generate(1, num_branches).named("Generate Final Answer"))
+    operations_graph.append_operation(operations.Score().named("Score Final Answer"))
+    operations_graph.append_operation(operations.KeepBestN(1))
+
+    operations_graph.append_operation(operations.GroundTruth(utils.test_answer))
+    return operations_graph
+
 def run(
         data_ids: List[int],
         methods: List[Callable[[], operations.GraphOfOperations]],
@@ -65,7 +88,7 @@ def run(
     ) -> float:
 
     orig_budget = budget
-    data_path = Path.cwd() / "datasets" / "grade-school-math" / "grade_school_math" / "data" / "test.jsonl"
+    data_path = project.datasets_dir() / "grade-school-math" / "grade_school_math" / "data" / "test.jsonl"
     data = []
     with open(data_path, "r") as f:
         for i, line in enumerate(f):
