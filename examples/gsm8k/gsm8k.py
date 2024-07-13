@@ -34,7 +34,10 @@ def io() -> operations.GraphOfOperations:
 def cot() -> operations.GraphOfOperations:
     return io()
 
-def plan_and_solve() -> operations.GraphOfOperations:
+def plan_and_solve_basic() -> operations.GraphOfOperations:
+    return io()
+
+def plan_and_solve_plus() -> operations.GraphOfOperations:
     return io()
 
 def cotsc() -> operations.GraphOfOperations:
@@ -132,7 +135,7 @@ def run(
                 GSM8KParser(),
                 {
                     "original": data["question"],
-                    "ground_truth": utils.strip_int_result(data["answer"]),
+                    "ground_truth": utils.strip_int_result(data["answer"], is_groundtruth=True),
                     "current": "",
                     "phase": 0,
                     "method": method.__name__,
@@ -156,11 +159,11 @@ def run(
 if __name__ == "__main__":
     budget = 30
     samples = [item for item in range(5)]
-    approaches = [io, cot, cotsc, plan_and_solve]
+    approaches = [io, cot, cotsc, plan_and_solve_basic, plan_and_solve_plus]
 
     logging.basicConfig(level=logging.INFO)
 
-    spent = run(samples, approaches, budget, "llama3-8b-ollama")
+    spent = run(samples, approaches, budget, "chatgpt")
 
     logging.info(f"Spent {spent} out of {budget} budget.")
     
