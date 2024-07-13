@@ -158,7 +158,8 @@ def run(
 
     orig_budget = budget
     
-    data_path = os.path.join(os.path.dirname(__file__), "test.jsonl")
+    datasets_dir: Path = project.datasets_dir() / "CommonSenseQA"
+    data_path = datasets_dir / "train_rand_split.jsonl"
 
     data = []
     if os.path.exists(data_path):  # test if exits
