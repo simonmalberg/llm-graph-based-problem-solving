@@ -10,20 +10,27 @@ class HotpotQAPrompter(prompter.Prompter):
     """
 
     io_prompt_get_keywords = """\
-    <Instruction> Give me a list of keywords for a wikipedia lookup to be able to answer this question. Give the keywords in the following format: give the score in the format <Keywords>["keyword1", "keyword2"]</Keywords>.</Instruction>
-    <Question>{input}</Question>
-    Output: 
-    """
+<Instruction> Give me a list of keywords for a wikipedia lookup to be able to answer this question. Give the keywords in the following format: give the score in the format <Keywords>["keyword1", "keyword2"]</Keywords>.</Instruction>
+<Question>{input}</Question>
+Output:
+"""
+
+    io_prompt_answer_question = """\
+<Instruction> Answer the question using the provided context. Only output the final answer directly without any other text.</Instruction>
+<Context>{context}</Context>
+<Question>{question}</Question>
+Output:
+"""
 
 
     def generate_prompt(self, num_branches: int, original: str, current: str, method: str, **kwargs) -> str:
         assert num_branches == 1, "Branching should be done via multiple requests."
-        if current is None or current == "":
-            input = original
-        else:
-            input = current
         if method.startswith("io"):
-            return self.io_prompt_get_keywords.format(input=input)
+            if kwargs["phase"] == 0:
+                prompt = self.io_prompt_get_keywords.format(input=original)
+            elif kwargs["phase"] == 2:
+                prompt = self.io_prompt_answer_question.format(context=current, question=original)
+        return prompt
 
     def aggregation_prompt(self, state_dicts: List[Dict], **kwargs) -> str:
         pass

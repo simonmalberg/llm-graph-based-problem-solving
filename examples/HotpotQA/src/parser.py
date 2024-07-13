@@ -54,9 +54,10 @@ class HotpotQAParser(parser.Parser):
         new_states = []
         documents_as_text = ""
         for key, value in documents.items():
-            documents_as_text += f"Search Term: {key}\nResults\n"
+            documents_as_text += f"Search Term: {key}\n<documents>\n"
             for doc in value[0][0]:
-                documents_as_text += f"{doc['title']}\n{doc['text']}\n"
+                documents_as_text += f"## {doc['title']}\n{"".join(doc['text'])}\n"
+            documents_as_text += "</documents>\n"
         new_state = state.copy()
 
         new_state["current"] = documents_as_text

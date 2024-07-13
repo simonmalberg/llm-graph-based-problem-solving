@@ -28,6 +28,7 @@ def io() -> operations.GraphOfOperations:
 
     operations_graph.append_operation(operations.Generate(1, 1))
     operations_graph.append_operation(operations.Retrieve(bm25_retriever_save_dir=(datasets_dir() / "HotpotQA" / "wikipedia_index_bm25"), k=5))
+    operations_graph.append_operation(operations.Generate(1, 1))
     # another generate process including the keywords and another prompt
     # groundtruth evaluation
 
