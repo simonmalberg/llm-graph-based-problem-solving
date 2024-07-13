@@ -13,6 +13,7 @@ from enum import Enum
 from typing import List, Iterator, Dict, Callable, Union
 from abc import ABC, abstractmethod
 import itertools
+import bm25s
 
 from graph_of_thoughts.operations.thought import Thought
 from graph_of_thoughts.language_models import AbstractLanguageModel
@@ -34,6 +35,8 @@ class OperationType(Enum):
     keep_valid: int = 6
     ground_truth_evaluator: int = 7
     selector: int = 8
+    graph_builder: int = 9
+    retrieve: int = 10
 
 
 class Operation(ABC):
@@ -425,7 +428,7 @@ class Generate(Operation):
     operation_type: OperationType = OperationType.generate
 
     def __init__(
-        self, num_branches_prompt: int = 1, num_branches_response: int = 1
+        self, num_branches_prompt: int = 1, num_branches_response: int = 1, get_logprobs: bool = False
     ) -> None:
         """
         Initializes a new Generate operation.
@@ -438,6 +441,7 @@ class Generate(Operation):
         super().__init__()
         self.num_branches_prompt: int = num_branches_prompt
         self.num_branches_response: int = num_branches_response
+        self.get_logprobs: bool = get_logprobs
         self.thoughts: List[Thought] = []
 
     def get_thoughts(self) -> List[Thought]:
@@ -478,9 +482,14 @@ class Generate(Operation):
             base_state = thought.state
             prompt = prompter.generate_prompt(self.num_branches_prompt, **base_state)
             self.logger.debug("Prompt for LM: %s", prompt)
-            responses = lm.get_response_texts(
-                lm.query(prompt, num_responses=self.num_branches_response)
-            )
+            if self.get_logprobs:
+                responses = lm.get_response_logprobs(
+                    lm.query(prompt, num_responses=self.num_branches_response, logprobs=True)
+                )
+            else:
+                responses = lm.get_response_texts(
+                    lm.query(prompt, num_responses=self.num_branches_response)
+                )
             self.logger.debug("Responses from LM: %s", responses)
             for new_state in parser.parse_generate_answer(base_state, responses):
                 new_state = {**base_state, **new_state}
@@ -505,7 +514,65 @@ class Generate(Operation):
             "Generate operation %d created %d new thoughts", self.id, len(self.thoughts)
         )
 
+# class GraphBuilder(Operation):
+#     """
+#     Operation to create a probability tree graph.
+#     """
+#     operation_type: OperationType = OperationType.graph_builder
 
+#     def _execute(self, lm: AbstractLanguageModel, prompter: Prompter, parser: Parser, **kwargs) -> None:
+#         pass
+
+
+class Retrieve(Operation):
+    """"
+    Operation to retrieve data from elastic.
+    """
+    operation_type: OperationType = OperationType.retrieve
+
+    def __init__(self, bm25_retriever_save_dir: str, get_keywords_function: Callable[[Dict], List[str]] = None, k: int = 5) -> None:
+        super().__init__()
+        self.k = k
+        self.retriever = bm25s.BM25.load(bm25_retriever_save_dir, load_corpus=True, mmap=True)
+        self.get_keywords_function = get_keywords_function
+        self.thoughts: List[Thought] = []
+
+    def _execute(self, lm: AbstractLanguageModel, prompter: Prompter, parser: Parser, **kwargs) -> None:
+        # previous_thoughts: List[Thought] = self.get_previous_thoughts()
+
+        assert (
+            len(self.predecessors) > 0
+        ), "Retrieve operation needs at least one predecessor"
+
+        for thought in self.get_previous_thoughts():
+            base_state = thought.state
+            if self.get_keywords_function:
+                keywords = self.get_keywords_function(base_state)
+            else:
+                keywords = base_state["keywords"]
+            documents_per_keyword = {}
+            for keyword in keywords:
+                keyword_tokenized = bm25s.tokenize(keyword, stopwords="en")
+                documents_per_keyword[keyword] = self.retriever.retrieve(keyword_tokenized, k=self.k)
+            for new_state in parser.parse_retrieve_answer(base_state, documents_per_keyword):
+                new_state = {**base_state, **new_state}
+                self.thoughts.append(Thought(new_state))
+                self.logger.debug(
+                    "New thought %d created with state %s",
+                    self.thoughts[-1].id,
+                    self.thoughts[-1].state,
+                    )
+
+    def get_thoughts(self) -> List[Thought]:
+        """
+        Returns the thoughts associated with the operation.
+
+        :return: List of generated thoughts.
+        :rtype: List[Thought]
+        """
+        return self.thoughts
+
+    
 class Improve(Operation):
     """
     Operation to improve thoughts.

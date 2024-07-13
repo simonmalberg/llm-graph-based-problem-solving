@@ -66,7 +66,7 @@ class AbstractLanguageModel(ABC):
         self.respone_cache.clear()
 
     @abstractmethod
-    def query(self, query: str, num_responses: int = 1) -> Any:
+    def query(self, query: str, num_responses: int = 1, logprobs: bool = None) -> Any:
         """
         Abstract method to query the language model.
 
@@ -74,6 +74,8 @@ class AbstractLanguageModel(ABC):
         :type query: str
         :param num_responses: The number of desired responses.
         :type num_responses: int
+        :param logprobs: Whether to return log probabilities for the completion.
+        :type logprobs: bool
         :return: The language model's response(s).
         :rtype: Any
         """
@@ -90,3 +92,18 @@ class AbstractLanguageModel(ABC):
         :rtype: List[str]
         """
         pass
+
+    @abstractmethod
+    def get_response_logprobs(
+            self, query_response: Union[List[Any], Any]
+    ) -> List[Dict]:
+        """
+        Extract the logprobs from the query response.
+
+        :param query_response: The responses returned from the language model.
+        :type query_response: Union[List[Any], Any]
+        :return: List of logprobs.
+        :rtype: List[Dict]
+        """
+        pass
+

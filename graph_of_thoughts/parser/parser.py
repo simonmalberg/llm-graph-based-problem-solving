@@ -62,6 +62,20 @@ class Parser(ABC):
         pass
 
     @abstractmethod
+    def parse_retrieve_answer(self, state: Dict, documents: Dict[Dict]) -> List[Dict]:
+        """
+        Parse the response from a retriever.
+
+        :param state: The thought state used to retrieve.
+        :type state: Dict
+        :param documents: The retrieved documents.
+        :type documents: List[Dict]
+        :return: The new thought states after parsing the response from the retriever.
+        :rtype: List[Dict]
+        """
+        pass
+
+    @abstractmethod
     def parse_validation_answer(self, state: Dict, texts: List[str]) -> bool:
         """
         Parse the response from the language model for a validation prompt.

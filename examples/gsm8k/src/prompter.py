@@ -162,6 +162,18 @@ class GSM8KPrompter(prompter.Prompter):
     Solution: {solution}
     Output: """
 
+    # probtree_graph_builder_prompt_base = """\
+    # Please generate a hierarchical question decomposition tree (HQDT) with json format for a given question. In this tree, the root node is the original complex question, and each non-root node is a sub-question of its parent. The leaf nodes are atomic questions that cannot be further decomposed.
+    # Q: Natalia sold clips to 48 of her friends in April, and then she sold half as many clips in May. How many clips did Natalia sell altogether in April and May?
+    # A: {"How many clips did Natalia sell altogether in April and May?": ["How many clips did Natalia sell in April?", "How many clips did Natalia sell in May?"]}
+    # Q: Weng earns $12 an hour for babysitting. Yesterday, she just did 50 minutes of babysitting. How much did she earn?"
+    # A: {"How much did she earn?": ["How much does Weng earn per minute?"]}
+    # Q: Betty is saving money for a new wallet which costs $100. Betty has only half of the money she needs. Her parents decided to give her $15 for that purpose, and her grandparents twice as much as her parents. How much more money does Betty need to buy the wallet?
+    # A: {"How much more money does Betty need to buy the wallet?": ["How much money does Betty have in total now?"]}
+    # Q: Julie is reading a 120-page book. Yesterday, she was able to read 12 pages and today, she read twice as many pages as yesterday. If she wants to read half of the remaining pages tomorrow, how many pages should she read?
+    # A: {"How many pages should she read?": ["How many pages are left to be read?"], "How many pages are left to be read?": ["How many pages did Julie read since yesterday?", "How many pages did Julie read today considering #1?"]}
+    # """
+
     def generate_prompt(self, num_branches: int, original: str, current: str, method: str, **kwargs) -> str:
         """
         Generate a generate prompt for the language model.
