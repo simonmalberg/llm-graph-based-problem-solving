@@ -179,7 +179,7 @@ class GSM8KPrompter(prompter.Prompter):
     Output: """
 
     tot_solve_prompt = """
-    <Instruction> Given the following variables and formulae, solve for the answer and give the integer solution behind ####  with no comma or dot.
+    <Instruction> Given the following variables and formulae, solve for the answer and give the integer solution in this format: <Answer>answer</Answer>.
     <Example>
     Input: total_pages = 120
     pages_yesterday = 12
@@ -189,18 +189,18 @@ class GSM8KPrompter(prompter.Prompter):
     
     Output:
     answer = (total_pages - (3 * pages_yesterday)) / 2 = (120 - (3*12))/2 = 42
-    #### 42
+    <Answer>42</Answer>
     </Example>
     </Instruction>
     Input: {input}
     Output: """
 
     tot_final_vote = """
-    <Instruction> Given the following problem and solution, evaluate whether the solution is correct or not with True or False.
+    <Instruction> Given the following problem and solution, Score the answer between 1 - 10 based on the confidence you have on the correctness of the values and the steps.
     <Example>
     Input: Julie is reading a 120-page book. Yesterday, she was able to read 12 pages and today, she read twice as many pages as yesterday. If she wants to read half of the remaining pages tomorrow, how many pages should she read?
     Solution: answer = (total_pages - (3 * pages_yesterday)) / 2 = (120 - (3*12))/2 = 42
-    Output: True
+    Output: <Score>9</Score>
     </Example>
     
     Input: {input}
@@ -245,7 +245,7 @@ class GSM8KPrompter(prompter.Prompter):
 
         else:
             raise ValueError(f"Unknown method: {method}")
-
+        logging.info("full_prompt: {}".format(full_prompt))
         return full_prompt
 
     def aggregation_prompt(self, state_dicts: List[Dict], **kwargs) -> str:

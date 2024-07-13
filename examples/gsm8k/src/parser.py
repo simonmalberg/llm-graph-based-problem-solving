@@ -5,18 +5,6 @@ from . import utils
 import re
 
 
-def extract_score(score_range: range, text: str):
-    match = re.search(r'<Score>(.*?)<\/Score>', text)
-    if match:
-        try:
-            score_val = int(match.group(1))
-            if score_val in score_range:
-                return score_val
-            else:
-                logging.warning(f"Scored value is not in the range of {score_range} for response {text}")
-        except ValueError:
-            logging.warning(f"Unable to parse score from response {text}, returning 0 as score")
-    return 0.0
 
 
 class GSM8KParser(parser.Parser):
@@ -67,7 +55,7 @@ class GSM8KParser(parser.Parser):
                 else:
                     new_state = state.copy()
                     new_state["phase"] = 3
-                    new_state["current"] = utils.strip_int_result(text, state["method"])
+                    new_state["current"] = utils.extract_int_answer(text)
                     new_states.append(new_state)
             else:
                 raise ValueError(f"Unknown method: {state['method']}")
@@ -88,7 +76,7 @@ class GSM8KParser(parser.Parser):
             logging.info(f"parse_score_answer: {text}")
         method = states[0]["method"]
         if method == "tot":
-            scores: List[float] = [float(extract_score(10, text)) for text in texts]
+            scores: List[float] = [float(utils.extract_score(10, text)) for text in texts]
             logging.info("parse_score_answer: scores: %s", scores)
             return scores
         else:
