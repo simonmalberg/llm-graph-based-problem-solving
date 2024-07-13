@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, List, Union
+from typing import Any, Dict, List, Union
 from graph_of_thoughts import parser
 from . import utils
 import re
@@ -87,3 +87,6 @@ class GSM8KParser(parser.Parser):
                 else:
                     score.append(0.0)
             return score
+
+    def parse_retrieve_answer(self, state: Dict, documents: Dict[Dict, Any]) -> List[Dict]:
+        pass

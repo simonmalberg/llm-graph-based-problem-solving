@@ -41,8 +41,7 @@ class GSM8KPrompter(prompter.Prompter):
     Output: """
 
     cot_prompt_base = """\
-    Provide the answer in the exact format as given.
-    <Instruction> Solve the following math problems and provide the full reasoning as well as the final integer answer without comma or dot in the following format: <Answer>answer</Answer>. </Instruction>
+    <Instruction> Solve the following math problem. Let us think step by step. Then provide the final answer with no dot or comma in this exact format: <Answer>answer</Answer>.</Instruction>
 
     <Examples>
     <Input>Natalia sold clips to 48 of her friends in April, and then she sold half as many clips in May. How many clips did Natalia sell altogether in April and May?</Input>
@@ -78,23 +77,26 @@ class GSM8KPrompter(prompter.Prompter):
     <Input>{input}</Input>
     Output: """
 
+    cot_zeroshot_prompt_base = """\
+    Solve the following math problem. Think step by step, then provide the final answer with no dot or comma in this exact format: <Answer>answer</Answer>.
+    {input}"""
+
     plan_solve_basic_prompt = "Let's first understand the problem and devise a plan to solve the problem. " \
                               "Then, let's carry out the plan to solve the problem step by step. " \
-                              "Give the final integer answer with no dot or comma in this format: <Answer>answer</Answer>"
+                              "Finally, give the final integer answer with no dot or comma in this exact format: <Answer>answer</Answer>"
 
     # The Plan and Solve Plus Prompt from Wang et al. (2023)
     plan_solve_plus_prompt = "Let's first understand the problem, extract relevant variables and their corresponding numerals, " \
                              "and make and devise a complete plan. Then, let's carry out the plan, calculate intermediate variables " \
                              "(pay attention to correct numerical calculation and commonsense), " \
                              "solve the problem step by step, and show the answer. " \
-                             "Give the final integer answer with no dot or comma in this format: <Answer>answer</Answer>"
+                             "Finally, give the final integer answer with no dot or comma in this exact format: <Answer>answer</Answer>"
 
 
     plan_and_solve_prompt_base = """\
-    {plan_and_solve_prompt}
-    <Instruction> Solve the following math problem:</Instruction>
+    <Instruction>Solve the following math problem.</Instruction>
     <Input>{input}</Input>
-    Output: """
+    {plan_and_solve_prompt}"""
 
 
     tot_initial_prompt = """
@@ -200,13 +202,15 @@ class GSM8KPrompter(prompter.Prompter):
         full_prompt = ""
         if method.startswith("io"):
             full_prompt =  self.io_prompt_base.format(input=input)
-        elif method.startswith("cot"):
+        elif method == "cot" or method == "cotsc":
             full_prompt =  self.cot_prompt_base.format(input=input)
+        elif method == "cot_zeroshot":
+            full_prompt =  self.cot_zeroshot_prompt_base.format(input=input)
         elif method.startswith("plan_and_solve"):
             if method.endswith("basic"):
-                return self.plan_and_solve_prompt_base.format(input=input, plan_and_solve_prompt=self.plan_solve_basic_prompt)
+                full_prompt = self.plan_and_solve_prompt_base.format(input=input, plan_and_solve_prompt=self.plan_solve_basic_prompt)
             elif method.endswith("plus"):
-                return self.plan_and_solve_prompt_base.format(input=input, plan_and_solve_prompt=self.plan_solve_plus_prompt)
+                full_prompt = self.plan_and_solve_prompt_base.format(input=input, plan_and_solve_prompt=self.plan_solve_plus_prompt)
             else:
                 raise ValueError(f"Unknown method: {method}")
         elif method == "tot":

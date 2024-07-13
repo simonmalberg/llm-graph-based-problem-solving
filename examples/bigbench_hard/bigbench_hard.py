@@ -4,7 +4,7 @@ import os
 import re
 import traceback
 from pathlib import Path
-from typing import Dict, List, Callable, Union
+from typing import Any, Dict, List, Callable, Union
 
 import project_utils as project
 try:
@@ -67,6 +67,8 @@ def score_answers_by_frequency(thoughts: List[Thought]) -> List[Thought]:
 def test_answer(state: Dict) -> bool:
     logging.debug(f"\nground truth: {state['ground_truth']}\n current_answer: {state['current']}")
     ground_truth = state["ground_truth"].strip().lower()
+    if state["current"] is None:
+        return False
     current_answer = state["current"].strip().lower()
     return ground_truth == current_answer
 
@@ -300,6 +302,9 @@ class BigBenchHardParser(parser.Parser):
     def parse_validation_answer(self, response: str, **kwargs) -> bool:
         pass
 
+    def parse_retrieve_answer(self, state: Dict, documents: Dict[Dict, Any]) -> List[Dict]:
+        pass
+
     def parse_score_answer(self, states: List[Dict], responses: List[str], **kwargs) -> List[float]:
         logging.info("parse_score_answer: responses: %s", responses)
         scores: List[float] = [float(extract_score(scoring_range, response)) for response in responses]
@@ -514,7 +519,7 @@ def run(
 
 if __name__ == "__main__":
     budget = 30
-    samples = 3
+    samples = 100
     approaches = [io, cot, cot_zeroshot, cot_sc, tot, plan_solve, plan_solve_plus]
     # approaches = [tot]
     logging.basicConfig(
@@ -524,10 +529,10 @@ if __name__ == "__main__":
     )
 
     tasks = [task.value for task in [
-        BBH_Tasks.BOOLEAN_EXPRESSIONS,
-        BBH_Tasks.DYCK_LANGUAGES,
+        # BBH_Tasks.BOOLEAN_EXPRESSIONS,
+        # BBH_Tasks.DYCK_LANGUAGES,
     ]]
 
-    spent = run(samples, approaches, budget, "llama3-8b-ollama", tasks)
+    spent = run(samples, approaches, budget, "chatgpt", tasks)
 
     logging.info(f"Spent {spent} out of {budget} budget.")

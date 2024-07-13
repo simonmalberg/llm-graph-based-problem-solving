@@ -8,7 +8,7 @@
 
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import Dict, List, Union
+from typing import Any, Dict, List, Union
 
 
 class Parser(ABC):
@@ -62,7 +62,7 @@ class Parser(ABC):
         pass
 
     @abstractmethod
-    def parse_retrieve_answer(self, state: Dict, documents: Dict[Dict]) -> List[Dict]:
+    def parse_retrieve_answer(self, state: Dict, documents: Dict[Dict, Any]) -> List[Dict]:
         """
         Parse the response from a retriever.
 

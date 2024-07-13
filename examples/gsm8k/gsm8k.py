@@ -27,12 +27,14 @@ def io() -> operations.GraphOfOperations:
     operations_graph = operations.GraphOfOperations()
 
     operations_graph.append_operation(operations.Generate(1, 1))
-    operations_graph.append_operation(operations.Score(1, False))
     operations_graph.append_operation(operations.GroundTruth(utils.test_answer))
 
     return operations_graph
 
 def cot() -> operations.GraphOfOperations:
+    return io()
+
+def cot_zeroshot() -> operations.GraphOfOperations:
     return io()
 
 def plan_and_solve_basic() -> operations.GraphOfOperations:
@@ -53,7 +55,6 @@ def cotsc() -> operations.GraphOfOperations:
     operations_graph.append_operation(operations.Generate(1, 5))
     operations_graph.append_operation(operations.ScoreByFrequency(ignore_none=True))
     operations_graph.append_operation(operations.KeepBestN(1, True))
-    operations_graph.append_operation(operations.Score(1, False))
     operations_graph.append_operation(operations.GroundTruth(utils.test_answer))
 
     return operations_graph
@@ -181,8 +182,9 @@ def run(
 
 if __name__ == "__main__":
     budget = 30
-    samples = [item for item in range(5)]
-    approaches = [io, cot, cotsc, plan_and_solve_basic, plan_and_solve_plus]
+    samples = [item for item in range(100)]
+    # approaches = [io, cot, cot_zeroshot, cotsc, plan_and_solve_basic, plan_and_solve_plus, tot]
+    approaches = [cotsc]
 
     logging.basicConfig(level=logging.INFO)
 

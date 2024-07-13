@@ -26,10 +26,10 @@ class GSM8KPlotter(BaseResultPlotter):
 if __name__ == "__main__":
     doc_plotter = GSM8KPlotter(
         # result_directory=Path(__file__).parent / "results" / "llama3-8b-ollama_io-cot_2024-06-12_14-50-52",
-        result_directory=Path(__file__).parent / "results" / "chatgpt_io-cot-cotsc-plan_and_solve_2024-07-11_13-44-09",
+        result_directory=Path(__file__).parent / "results" / "chatgpt_io-cot-cot_zeroshot-cotsc-plan_and_solve_basic-plan_and_solve_plus-tot_2024-07-13_18-20-04",
         config=Config(
-            methods_order=["io", "cot", "cotsc", "plan_and_solve"],
-            methods_labels=["IO", "CoT", "CoT-SC", "P&S"],
+            methods_order=["plan_and_solve_basic", "plan_and_solve_plus", "io", "cot", "cot_zeroshot", "cotsc", "tot"],
+            methods_labels=["PS", "PS+", "IO", "CoT", "CoT-zs", "CoT-SC", "ToT"],
             y_lower=0,
             y_upper=1,
             cost_upper=1,
@@ -38,11 +38,10 @@ if __name__ == "__main__":
             annotation_offset=-0.05,
             display_left_ylabel=True,
             display_right_ylabel=True,
-            left_ylabel="Score (1 or 0); the higher the better",
+            left_ylabel="Accuracy",
             right_ylabel="Percentage of total token count",
-            figsize=(3.75, 5),
+            figsize=(7.5, 5),
             fig_fontsize=12,
-            title="correct results out of 20",
             plot_only_accuracy=True,
         )
         )
