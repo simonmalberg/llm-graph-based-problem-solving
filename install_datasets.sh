@@ -1,4 +1,4 @@
-# mkdir datasets
+mkdir datasets
 cd datasets
 
 # Clone the  grade-school-math repository
