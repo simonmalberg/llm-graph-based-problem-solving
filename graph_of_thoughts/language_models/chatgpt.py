@@ -63,7 +63,7 @@ class ChatGPT(AbstractLanguageModel):
         self.client = OpenAI(api_key=self.api_key, organization=self.organization, base_url=base_url)
 
     def query(
-        self, query: str, num_responses: int = 1
+        self, query: str, num_responses: int = 1, logprobs: bool = None
     ) -> Union[List[ChatCompletion], ChatCompletion]:
         """
         Query the OpenAI model for responses.
@@ -79,8 +79,9 @@ class ChatGPT(AbstractLanguageModel):
             return self.respone_cache[query]
 
         if num_responses == 1:
-            response = self.chat([{"role": "user", "content": query}], num_responses)
+            response = self.chat([{"role": "user", "content": query}], num_responses, logprobs)
         elif self.api_key == "ollama":
+            assert logprobs is None
             response = [self.chat([{"role": "user", "content": query}], 1) for _ in range(num_responses)]
         else:
             response = []
@@ -89,7 +90,7 @@ class ChatGPT(AbstractLanguageModel):
             while num_responses > 0 and total_num_attempts > 0:
                 try:
                     assert next_try > 0
-                    res = self.chat([{"role": "user", "content": query}], next_try)
+                    res = self.chat([{"role": "user", "content": query}], next_try, logprobs)
                     response.append(res)
                     num_responses -= next_try
                     next_try = min(num_responses, next_try)

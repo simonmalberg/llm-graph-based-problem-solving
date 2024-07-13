@@ -34,6 +34,11 @@ class HotpotQAParser(parser.Parser):
                 new_state["current"] = text
                 new_state["phase"] = state["phase"] + 1
                 new_states.append(new_state)
+            elif state["method"].startswith("probtree"):
+                new_state = state.copy()
+                new_state["current"] = text
+                new_state["phase"] = state["phase"] + 1
+                new_states.append(new_state)
             else:
                 raise ValueError(f"Unknown method: {state['method']}")
         return new_states

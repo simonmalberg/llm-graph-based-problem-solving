@@ -428,7 +428,7 @@ class Generate(Operation):
     operation_type: OperationType = OperationType.generate
 
     def __init__(
-        self, num_branches_prompt: int = 1, num_branches_response: int = 1
+        self, num_branches_prompt: int = 1, num_branches_response: int = 1, get_logprobs: bool = False
     ) -> None:
         """
         Initializes a new Generate operation.
@@ -441,6 +441,7 @@ class Generate(Operation):
         super().__init__()
         self.num_branches_prompt: int = num_branches_prompt
         self.num_branches_response: int = num_branches_response
+        self.get_logprobs: bool = get_logprobs
         self.thoughts: List[Thought] = []
 
     def get_thoughts(self) -> List[Thought]:
@@ -481,9 +482,14 @@ class Generate(Operation):
             base_state = thought.state
             prompt = prompter.generate_prompt(self.num_branches_prompt, **base_state)
             self.logger.debug("Prompt for LM: %s", prompt)
-            responses = lm.get_response_texts(
-                lm.query(prompt, num_responses=self.num_branches_response)
-            )
+            if self.get_logprobs:
+                responses = lm.get_response_logprobs(
+                    lm.query(prompt, num_responses=self.num_branches_response, logprobs=True)
+                )
+            else:
+                responses = lm.get_response_texts(
+                    lm.query(prompt, num_responses=self.num_branches_response)
+                )
             self.logger.debug("Responses from LM: %s", responses)
             for new_state in parser.parse_generate_answer(base_state, responses):
                 new_state = {**base_state, **new_state}
@@ -508,14 +514,14 @@ class Generate(Operation):
             "Generate operation %d created %d new thoughts", self.id, len(self.thoughts)
         )
 
-class GraphBuilder(Operation):
-    """
-    Operation to create a probability tree graph.
-    """
-    operation_type: OperationType = OperationType.graph_builder
+# class GraphBuilder(Operation):
+#     """
+#     Operation to create a probability tree graph.
+#     """
+#     operation_type: OperationType = OperationType.graph_builder
 
-    def _execute(self, lm: AbstractLanguageModel, prompter: Prompter, parser: Parser, **kwargs) -> None:
-        pass
+#     def _execute(self, lm: AbstractLanguageModel, prompter: Prompter, parser: Parser, **kwargs) -> None:
+#         pass
 
 
 class Retrieve(Operation):
