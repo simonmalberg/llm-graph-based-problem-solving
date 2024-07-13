@@ -317,13 +317,13 @@ files = [
 
 [[package]]
 name = "exceptiongroup"
-version = "1.2.1"
+version = "1.2.2"
 description = "Backport of PEP 654 (exception groups)"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "exceptiongroup-1.2.1-py3-none-any.whl", hash = "sha256:5258b9ed329c5bbdd31a309f53cbfb0b155341807f6ff7606a1e801a891b29ad"},
-    {file = "exceptiongroup-1.2.1.tar.gz", hash = "sha256:a4785e48b045528f5bfe627b6ad554ff32def154f42372786903b7abcfe1aa16"},
+    {file = "exceptiongroup-1.2.2-py3-none-any.whl", hash = "sha256:3111b9d131c238bec2f8f516e123e14ba243563fb135d3fe885990585aa7795b"},
+    {file = "exceptiongroup-1.2.2.tar.gz", hash = "sha256:47c2edf7c6738fafb49fd34290706d1a1a2f4d1c6df275526b62cbb4aa5393cc"},
 ]
 
 [package.extras]
@@ -2047,13 +2047,13 @@ telegram = ["requests"]
 
 [[package]]
 name = "transformers"
-version = "4.42.3"
+version = "4.42.4"
 description = "State-of-the-art Machine Learning for JAX, PyTorch and TensorFlow"
 optional = false
 python-versions = ">=3.8.0"
 files = [
-    {file = "transformers-4.42.3-py3-none-any.whl", hash = "sha256:a61a0df9609b7d69229d941b2fd857c841ba3043d6da503d0da1a4b133f65b92"},
-    {file = "transformers-4.42.3.tar.gz", hash = "sha256:7539873ff45809145265cbc94ea4619d2713c41ceaa277b692d8b0be3430f7eb"},
+    {file = "transformers-4.42.4-py3-none-any.whl", hash = "sha256:6d59061392d0f1da312af29c962df9017ff3c0108c681a56d1bc981004d16d24"},
+    {file = "transformers-4.42.4.tar.gz", hash = "sha256:f956e25e24df851f650cb2c158b6f4352dfae9d702f04c113ed24fc36ce7ae2d"},
 ]
 
 [package.dependencies]
@@ -2193,4 +2193,4 @@ test = ["big-O", "importlib-resources", "jaraco.functools", "jaraco.itertools", 
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9"
-content-hash = "db26aceb7f0fc1737812a6fe2bc496063b499df5e0c7c0b6e4b5e557c3ebdd6c"
+content-hash = "d7af6168c17d781f9fb56f16a32ddab2636ad1d7068f081c458287397a53410f"
