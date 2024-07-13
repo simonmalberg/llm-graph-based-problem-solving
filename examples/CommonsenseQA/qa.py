@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 from typing import Dict, List, Callable, Union
 from graph_of_thoughts import controller, language_models, operations, prompter, parser
+import project_utils as project
 from graph_of_thoughts.operations import Thought
 
 import os
