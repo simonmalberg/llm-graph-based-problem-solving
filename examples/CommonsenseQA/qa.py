@@ -171,7 +171,7 @@ def run(
                     json_line["id"] = i
                     data.append(json_line)
                 except json.JSONDecodeError as e:
-                    print(f"Error decoding JSON on line {i}: {line}")  # print error
+                    logging.error(f"Error decoding JSON on line {i}: {line}")  # print error
     else:
         logging.error("File does not exist.")
 
