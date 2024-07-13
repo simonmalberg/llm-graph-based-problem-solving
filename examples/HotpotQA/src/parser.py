@@ -18,7 +18,7 @@ class HotpotQAParser(parser.Parser):
         """
         self.cache = {}
 
-    def parse_generate_answer(self, state: Dict, texts: List[str]) -> Dict:
+    def parse_generate_answer(self, state: Dict, texts: Union[List[str], Any]) -> Dict:
         new_states = []
         for text in texts:
             if state["method"].startswith("io"):
@@ -27,7 +27,7 @@ class HotpotQAParser(parser.Parser):
                     text = text.split("<Keywords>")[1].split("</Keywords>")[0]
                     try:
                         keywords_list = ast.literal_eval(text)
-                    except Exception as e:
+                    except Exception as äe:
                         logging.error(f"Could not parse keywords: {text}")
                         keywords_list = []
                     new_state["keywords"] = keywords_list
@@ -36,7 +36,8 @@ class HotpotQAParser(parser.Parser):
                 new_states.append(new_state)
             elif state["method"].startswith("probtree"):
                 new_state = state.copy()
-                new_state["current"] = text
+                output_tree = utils.parse_tree_and_extract_logprobs(text)
+                new_state["current"] = output_tree
                 new_state["phase"] = state["phase"] + 1
                 new_states.append(new_state)
             else:

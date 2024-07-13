@@ -483,9 +483,9 @@ class Generate(Operation):
             prompt = prompter.generate_prompt(self.num_branches_prompt, **base_state)
             self.logger.debug("Prompt for LM: %s", prompt)
             if self.get_logprobs:
-                responses = lm.get_response_logprobs(
-                    lm.query(prompt, num_responses=self.num_branches_response, logprobs=True)
-                )
+                responses = lm.query(prompt, num_responses=self.num_branches_response, logprobs=True)
+                if not isinstance(responses, List):
+                    responses = [responses]
             else:
                 responses = lm.get_response_texts(
                     lm.query(prompt, num_responses=self.num_branches_response)

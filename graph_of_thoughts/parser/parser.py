@@ -8,7 +8,7 @@
 
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import Dict, List, Union
+from typing import Any, Dict, List, Union
 
 
 class Parser(ABC):
@@ -48,7 +48,7 @@ class Parser(ABC):
         pass
 
     @abstractmethod
-    def parse_generate_answer(self, state: Dict, texts: List[str]) -> List[Dict]:
+    def parse_generate_answer(self, state: Dict, texts: Union[List[str], Any]) -> List[Dict]:
         """
         Parse the response from the language model for a generate prompt.
 

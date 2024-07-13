@@ -152,7 +152,7 @@ def run(
 
 if __name__ == "__main__":
     budget = 30
-    samples = [item for item in range(5)]
+    samples = [item for item in range(30)]
     approaches = [probtree]
 
     logging.basicConfig(level=logging.INFO)

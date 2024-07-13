@@ -93,17 +93,17 @@ class AbstractLanguageModel(ABC):
         """
         pass
 
-    @abstractmethod
-    def get_response_logprobs(
-            self, query_response: Union[List[Any], Any]
-    ) -> List[Dict]:
-        """
-        Extract the logprobs from the query response.
+    # @abstractmethod
+    # def get_response_logprobs(
+    #         self, query_response: Union[List[Any], Any]
+    # ) -> List[Dict]:
+    #     """
+    #     Extract the logprobs from the query response.
 
-        :param query_response: The responses returned from the language model.
-        :type query_response: Union[List[Any], Any]
-        :return: List of logprobs.
-        :rtype: List[Dict]
-        """
-        pass
+    #     :param query_response: The responses returned from the language model.
+    #     :type query_response: Union[List[Any], Any]
+    #     :return: List of logprobs.
+    #     :rtype: List[Dict]
+    #     """
+    #     pass
 
