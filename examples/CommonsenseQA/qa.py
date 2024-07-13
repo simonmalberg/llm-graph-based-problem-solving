@@ -173,7 +173,7 @@ def run(
                 except json.JSONDecodeError as e:
                     print(f"Error decoding JSON on line {i}: {line}")  # print error
     else:
-        print("File does not exist.")
+        logging.error("File does not exist.")
 
     if data_ids is None or len(data_ids) == 0:
         data_ids = list(range(len(data)))
