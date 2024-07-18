@@ -1,3 +1,4 @@
+import logging
 from typing import Dict, List
 from graph_of_thoughts import prompter
 
@@ -10,7 +11,7 @@ class HotpotQAPrompter(prompter.Prompter):
     """
 
     io_prompt_get_keywords = """\
-<Instruction>Give me a list of keywords for a wikipedia lookup to be able to answer this question. Give the keywords in the following format: give the score in the format <Keywords>["keyword1", "keyword2"]</Keywords>.</Instruction>
+<Instruction>Give me a list of keywords for a wikipedia lookup to be able to answer this question. Give the keywords in the following format: <Keywords>["keyword1", "keyword2"]</Keywords>.</Instruction>
 <Question>{input}</Question>
 Output:
 """
@@ -66,6 +67,22 @@ Q: {question}
 A: \
 """
 
+    cot_sc_prompt_get_keywords = """\
+    <Instruction> Give me a list of keywords for a wikipedia lookup to be able to answer this question. 
+    Think Step by Step, and finally give the keywords in the following format: <Keywords>["keyword1", "keyword2"]</Keywords>.
+    </Instruction>
+    <Question>{input}</Question>
+    Output:
+    """
+
+    cot_sc_prompt_answer_question = """\
+    <Context>{context}</Context>
+    <Instruction> Answer the question using the provided context. Think Step by Step, and finally give the answer in this exact format: <Answer>answer</Answer>.
+    Do not make the answer more than 5 words.
+    </Instruction>
+    <Question>{question}</Question>
+    Output:
+    """
 
     def generate_prompt(self, num_branches: int, original: str, current: str, method: str, **kwargs) -> str:
         assert num_branches == 1, "Branching should be done via multiple requests."
@@ -74,8 +91,17 @@ A: \
                 prompt = self.io_prompt_get_keywords.format(input=original)
             elif kwargs["phase"] == 2:
                 prompt = self.io_prompt_answer_question.format(context=current, question=original)
-        if method.startswith("probtree"):
+        elif method.startswith("probtree"):
             prompt = self.tree_generation_prompt.format(question=original, examples=self.tree_generation_examples)
+        elif method.startswith("cot_sc"):
+            if kwargs["phase"] == 0:
+                prompt = self.cot_sc_prompt_get_keywords.format(input=original)
+            elif kwargs["phase"] == 2:
+                prompt = self.cot_sc_prompt_answer_question.format(context=current, question=original)
+        else:
+            raise ValueError(f"generate_prompt: Unknown method: {method}")
+        logging.info("full_prompt: %s", prompt)
+
         return prompt
 
     def aggregation_prompt(self, state_dicts: List[Dict], **kwargs) -> str:

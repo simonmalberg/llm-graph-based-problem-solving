@@ -18,7 +18,7 @@ class HotpotQAParser(parser.Parser):
         """
         self.cache = {}
 
-    def parse_generate_answer(self, state: Dict, texts: List[str]) -> Dict:
+    def parse_generate_answer(self, state: Dict, texts: List[str]) -> List[Dict]:
         new_states = []
         for text in texts:
             if state["method"].startswith("io"):
@@ -39,6 +39,19 @@ class HotpotQAParser(parser.Parser):
                 new_state["current"] = text
                 new_state["phase"] = state["phase"] + 1
                 new_states.append(new_state)
+            elif state["method"].startswith("cot_sc"):
+                if state["phase"] == 0:
+                    new_state = state.copy()
+                    keywords_list = utils.extract_keywords(text)
+                    new_state["keywords"] = keywords_list
+                    new_state["current"] = text
+                    new_state["phase"] = state["phase"] + 1
+                    new_states.append(new_state)
+                elif state["phase"] == 2:
+                    new_state = state.copy()
+                    new_state["current"] = utils.extract_answer(text)
+                    new_state["phase"] = state["phase"] + 1
+                    new_states.append(new_state)
             else:
                 raise ValueError(f"Unknown method: {state['method']}")
         return new_states
