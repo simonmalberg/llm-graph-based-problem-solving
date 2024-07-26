@@ -18,9 +18,10 @@ class HotpotQAParser(parser.Parser):
         """
         self.cache = {}
 
-    def parse_generate_answer(self, state: Dict, texts: List[str]) -> Dict:
+    def parse_generate_answer(self, state: Dict, texts: List[str]) -> List[Dict]:
         new_states = []
         for text in texts:
+            logging.info("full response = {}".format(text))
             if state["method"].startswith("io"):
                 new_state = state.copy()
                 if "<Keywords>" in text:
@@ -39,6 +40,52 @@ class HotpotQAParser(parser.Parser):
                 new_state["current"] = text
                 new_state["phase"] = state["phase"] + 1
                 new_states.append(new_state)
+            elif state["method"].startswith("cot_sc") or state["method"].startswith("cot") or state["method"].startswith("plan_solve"):
+                if state["phase"] == 0:
+                    new_state = state.copy()
+                    keywords_list = utils.extract_keywords(text)
+                    new_state["keywords"] = keywords_list
+                    new_state["current"] = text
+                    new_state["phase"] = state["phase"] + 1
+                    new_states.append(new_state)
+                elif state["phase"] == 2:
+                    new_state = state.copy()
+                    new_state["current"] = utils.extract_answer(text)
+                    new_state["phase"] = state["phase"] + 1
+                    new_states.append(new_state)
+            elif state["method"].startswith("tot"):
+                if state["phase"] == 0:
+                    new_state = state.copy()
+                    keywords_list = utils.extract_keywords(text)
+                    new_state["keywords"] = keywords_list
+                    new_state["current"] = text
+                    new_state["phase"] = state["phase"] + 1
+                    new_states.append(new_state)
+                elif state["phase"] == 2:
+                    new_state = state.copy()
+                    if "<Keywords>" in text:
+                        keywords_list = utils.extract_keywords(text)
+                        new_state["keywords"] = keywords_list
+                        new_state["second_retrieval"] = True
+                        new_state["current"] = text
+                        new_state["phase"] = state["phase"] + 1
+                        new_states.append(new_state)
+                    elif "<Answer>" in text:
+                        new_state["current"] = utils.extract_answer(text)
+                        new_state["phase"] = state["phase"] + 1
+                        new_state["second_retrieval"] = False
+                        new_state["answer"] = utils.extract_answer(text)
+                        new_states.append(new_state)
+                elif state["phase"] >= 3:
+                    new_state = state.copy()
+                    if "answer" in new_state.keys():
+                        new_states.append(new_state)
+                    else:
+                        new_state["current"] = utils.extract_answer(text)
+                        new_state["phase"] = state["phase"] + 1
+                        new_state["answer"] = utils.extract_answer(text)
+                        new_states.append(new_state)
+
             else:
                 raise ValueError(f"Unknown method: {state['method']}")
         return new_states

@@ -14,6 +14,8 @@ from graph_of_thoughts.operations import GraphOfOperations, Thought
 from graph_of_thoughts.prompter import Prompter
 from graph_of_thoughts.parser import Parser
 
+import uuid
+
 
 class Controller:
     """
@@ -152,3 +154,51 @@ class Controller:
 
         with open(path, "w") as file:
             file.write(json.dumps(output, indent=2))
+
+
+    def generate_json_canvas(self, path: str):
+        canvas_dict = {
+            "nodes": [],
+            "edges": []
+        }
+        for i, operation in enumerate(self.graph.operations):
+            node_operation = {
+                "id": str(uuid.uuid4()),
+                "type": "text",
+                "x": 0,
+                "y": (2*i)*600,
+                "width": 640,
+                "height": 80,
+                "text": f"### {operation.display_name}"
+            }
+            canvas_dict["nodes"].append(node_operation)
+            thought_count_middle = int(len(operation.get_thoughts())/2)
+            for j, thought in enumerate(operation.get_thoughts()):
+                thought_string = f"### Thoughts\n id: {thought.id}\n"
+                if thought.scored:
+                    thought_string = thought_string + f"score: {thought.score}\n"
+                for key in thought.state.keys():
+                    thought_string = thought_string + f"{key}:\n ```\n{thought.state[key]}\n```\n\n"
+
+                node_thought = {
+                    "id": str(uuid.uuid4()),
+                    "type": "text",
+                    "x": (j-thought_count_middle)*600,
+                    "y": ((2*i)*600 + 300),
+                    "width": 560,
+                    "height": 720,
+                    "text": thought_string
+                }
+                canvas_dict["nodes"].append(node_thought)
+                edge_thought = {
+                    "id": str(uuid.uuid4()),
+                    "fromNode": node_operation["id"],
+                    "toNode": node_thought["id"],
+                    "fromSide": "bottom",
+                    "toSide": "top",
+                    "toEnd": "arrow",
+                }
+                canvas_dict["edges"].append(edge_thought)
+        with open(path, "w") as file:
+            file.write(json.dumps(canvas_dict, indent=2))
+
