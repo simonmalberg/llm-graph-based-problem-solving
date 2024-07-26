@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import List, Callable
 from graph_of_thoughts import controller, language_models, operations
 import project_utils as project
+from project_utils import LM
 
 try:
     from .src.prompter import GSM8KPrompter
@@ -66,7 +67,7 @@ def tot() -> operations.GraphOfOperations:
         :return: Graph of Operations
         :rtype: GraphOfOperations
         """
-    num_branches = 1
+    num_branches = 5
     operations_graph = operations.GraphOfOperations()
     # Phase 1: setting up the equations
     operations_graph.append_operation(operations.Generate(1, num_branches).named("Generate Setup"))
@@ -75,6 +76,28 @@ def tot() -> operations.GraphOfOperations:
     # Phase 2: calculating the final results
     operations_graph.append_operation(operations.Generate(1, num_branches).named("Generate Final Answer"))
     operations_graph.append_operation(operations.Score().named("Score Final Answer"))
+    operations_graph.append_operation(operations.KeepBestN(1))
+
+    operations_graph.append_operation(operations.GroundTruth(utils.test_answer))
+    return operations_graph
+
+
+def got() -> operations.GraphOfOperations:
+    """
+        Generates the Graph of Operations for the ToT method.
+
+        :return: Graph of Operations
+        :rtype: GraphOfOperations
+        """
+    num_branches = 5
+    operations_graph = operations.GraphOfOperations()
+    # Phase 1: setting up the equations
+    operations_graph.append_operation(operations.Generate(1, num_branches).named("Generate Setup"))
+    operations_graph.append_operation(operations.Score().named("Score Setup"))
+    operations_graph.append_operation(operations.KeepBestN(1))
+    # Phase 2: calculating the final results
+    operations_graph.append_operation(operations.Generate(1, num_branches).named("Generate Final Answer"))
+    operations_graph.append_operation(operations.ScoreByFrequency(ignore_none=True).named("Score Final Answer By Frequency"))
     operations_graph.append_operation(operations.KeepBestN(1))
 
     operations_graph.append_operation(operations.GroundTruth(utils.test_answer))
@@ -173,7 +196,13 @@ def run(
                 method.__name__,
                 f"{data['id']}.json",
             )
+            # canvas_path = os.path.join(
+            #     results_folder,
+            #     method.__name__,
+            #     f"{data['id']}.canvas",
+            # )
             executor.output_graph(path)
+            # executor.generate_json_canvas(canvas_path)
             budget -= lm.cost
 
     return orig_budget - budget
@@ -183,6 +212,7 @@ if __name__ == "__main__":
     budget = 30
     samples = [item for item in range(5)]
     approaches = [io, cot, cotsc, plan_and_solve_basic, plan_and_solve_plus]
+    # approaches = [tot]
 
     logging.basicConfig(level=logging.INFO)
 

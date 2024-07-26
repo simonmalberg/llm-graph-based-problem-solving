@@ -209,7 +209,7 @@ class GSM8KPrompter(prompter.Prompter):
                 return self.plan_and_solve_prompt_base.format(input=input, plan_and_solve_prompt=self.plan_solve_plus_prompt)
             else:
                 raise ValueError(f"Unknown method: {method}")
-        elif method == "tot":
+        elif method == "tot" or method == "got":
             if current is None or current == "":
                 full_prompt = self.tot_initial_prompt.format(input=input)
             else:
@@ -227,7 +227,7 @@ class GSM8KPrompter(prompter.Prompter):
         phase = state_dicts[0]["phase"]
         logging.info("score_prompt: phase = {}".format(phase))
         full_prompt = ""
-        if method == "tot":
+        if method == "tot" or method == "got":
             if phase < 3:
                 full_prompt = self.tot_initial_vote.format(input=state_dicts[0]["original"], setup=state_dicts[0]["current"])
             else:

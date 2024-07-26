@@ -82,20 +82,7 @@ def cot_sc_1() -> operations.GraphOfOperations:
 
 def cot_sc_2() -> operations.GraphOfOperations:
     """
-        Generates the Graph of Operations for the CoT-SC II Method.
-        In this implementation, the retrieval is done `n` times, then self-consistency is implemented on the entire answer string.
-        Then, the frequent answer is used to retrieve documents, and the model is prompted `n` times for the final answer.
-        Then, Self-consistency is applied to the final answer.
-
-        :return: Graph of Operations
-        :rtype: GraphOfOperations
-        """
-    pass
-
-
-def cot_sc_3() -> operations.GraphOfOperations:
-    """
-            Generates the Graph of Operations for the CoT-SC III Method.
+            Generates the Graph of Operations for the CoT-SC II Method.
             In this implementation, the retrieval is done `n` times, then self-consistency is implemented on a per key-word basis.
             Then, the frequent answer is used to retrieve documents, and the model is prompted `n` times for the final answer.
             Then, Self-consistency is applied to the final answer.
@@ -117,6 +104,23 @@ def cot_sc_3() -> operations.GraphOfOperations:
     operations_graph.append_operation(operations.KeepBestN(1))
     return operations_graph
 
+
+def tot() -> operations.GraphOfOperations:
+    num_branches = 1
+    retrieval_count = 5
+
+    operations_graph = operations.GraphOfOperations()
+    operations_graph.append_operation(operations.Generate(1, num_branches).named("Generate Keywords"))
+    operations_graph.append_operation(
+        operations.Retrieve(bm25_retriever_save_dir=(datasets_dir() / "HotpotQA" / "wikipedia_index_bm25"),
+                            k=retrieval_count).named("Retrieve Keywords"))
+    operations_graph.append_operation(operations.Generate(1, num_branches).named("Check Keywords or Answer"))
+    operations_graph.append_operation(
+        operations.Retrieve(bm25_retriever_save_dir=(datasets_dir() / "HotpotQA" / "wikipedia_index_bm25"),
+                            k=retrieval_count).named("Retrieve Keywords"))
+    operations_graph.append_operation(operations.Generate(1, num_branches).named("Final Answer"))
+
+    return operations_graph
 
 def run(
         data_ids: List[int],
@@ -219,7 +223,7 @@ def run(
 if __name__ == "__main__":
     budget = 30
     samples = [item for item in range(1)]
-    approaches = [cot_sc_3]
+    approaches = [cot_sc_2]
 
     logging.basicConfig(
         level=logging.INFO,

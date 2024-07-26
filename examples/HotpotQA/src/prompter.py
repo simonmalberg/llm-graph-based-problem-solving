@@ -84,6 +84,36 @@ A: \
     Output:
     """
 
+    tot_prompt_get_keywords = """\
+    <Instruction> Give me a list of keywords for a wikipedia lookup to be able to answer this question. 
+    Think Step by Step, and finally give the keywords in the following format: <Keywords>["keyword1", "keyword2"]</Keywords>.
+    </Instruction>
+    <Question>{input}</Question>
+    Output:
+    """
+
+    tot_prompt_verify_retrieved_documents = """\
+    <Instruction> To answer the question 
+    <Question>{input}</Question>
+    You used the list of keywords <Keywords>{keywords}</Keywords> and was able to retrieve the following documents:
+    <Documents>
+    {documents}
+    </Documents>
+    
+    If the documents retrieved are sufficient to correctly answer the question, give the final answer in this exact format: <Answer>answer</Answer>. 
+    Do not make the answer more than 5 words. Otherwise if you need to update the keywords and search again, give the keywords in the following format: <Keywords>["keyword1", "keyword2"]</Keywords>.
+    </Instruction>
+    """
+
+    tot_prompt_answer_question = """\
+        <Context>{context}</Context>
+        <Instruction> Answer the question using the provided context. Think Step by Step, and finally give the answer in this exact format: <Answer>answer</Answer>.
+        Do not make the answer more than 5 words.
+        </Instruction>
+        <Question>{question}</Question>
+        Output:
+        """
+
     def generate_prompt(self, num_branches: int, original: str, current: str, method: str, **kwargs) -> str:
         assert num_branches == 1, "Branching should be done via multiple requests."
         if method.startswith("io"):
@@ -98,6 +128,17 @@ A: \
                 prompt = self.cot_sc_prompt_get_keywords.format(input=original)
             elif kwargs["phase"] == 2:
                 prompt = self.cot_sc_prompt_answer_question.format(context=current, question=original)
+        elif method.startswith("tot"):
+            logging.info("phase = {}".format(kwargs["phase"]))
+            if kwargs["phase"] == 0:
+                prompt = self.tot_prompt_get_keywords.format(input=original)
+            elif kwargs["phase"] == 2:
+                keywords_str = "["+", ".join([f"\"{keyword}\"" for keyword in kwargs["keywords"]])+"]"
+                logging.info("keywords_str: {}".format(keywords_str))
+                prompt = self.tot_prompt_verify_retrieved_documents.format(documents=current, input=original, keywords=keywords_str)
+            elif kwargs["phase"] == 4:
+                prompt = self.tot_prompt_answer_question.format(context=current, question=original)
+
         else:
             raise ValueError(f"generate_prompt: Unknown method: {method}")
         logging.info("full_prompt: %s", prompt)
