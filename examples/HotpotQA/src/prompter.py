@@ -1,5 +1,7 @@
 import logging
 from typing import Dict, List
+
+from examples.HotpotQA.src import utils
 from graph_of_thoughts import prompter
 
 
@@ -17,7 +19,11 @@ Output:
 """
 
     io_prompt_answer_question = """\
-<Instruction>Answer the question using the provided context. Only output the final answer directly without any other text.</Instruction>
+<Instruction>Answer the question using the provided context. Only output the final answer directly without any other text.
+<Examples>
+{examples}
+</Examples>
+</Instruction>
 <Context>{context}</Context>
 <Question>{question}</Question>
 Output:
@@ -79,6 +85,9 @@ A: \
     <Context>{context}</Context>
     <Instruction> Answer the question using the provided context. Think Step by Step, and finally give the answer in this exact format: <Answer>answer</Answer>.
     Do not make the answer more than 5 words.
+    <Examples>
+    {examples}
+    </Examples>
     </Instruction>
     <Question>{question}</Question>
     Output:
@@ -109,6 +118,9 @@ A: \
         <Context>{context}</Context>
         <Instruction> Answer the question using the provided context. Think Step by Step, and finally give the answer in this exact format: <Answer>answer</Answer>.
         Do not make the answer more than 5 words.
+        <Examples>
+        {examples}
+        </Examples>
         </Instruction>
         <Question>{question}</Question>
         Output:
@@ -116,18 +128,22 @@ A: \
 
     def generate_prompt(self, num_branches: int, original: str, current: str, method: str, **kwargs) -> str:
         assert num_branches == 1, "Branching should be done via multiple requests."
+        examples = utils.parse_examples()
         if method.startswith("io"):
             if kwargs["phase"] == 0:
                 prompt = self.io_prompt_get_keywords.format(input=original)
             elif kwargs["phase"] == 2:
-                prompt = self.io_prompt_answer_question.format(context=current, question=original)
+                examples_str = "\n".join([f"{example["question"]}<Answer>{example["io_answer"]}</Answer>" for example in examples])
+                prompt = self.io_prompt_answer_question.format(context=current, question=original, examples=examples_str)
         elif method.startswith("probtree"):
             prompt = self.tree_generation_prompt.format(question=original, examples=self.tree_generation_examples)
-        elif method.startswith("cot_sc"):
+        elif method.startswith("cot_sc") or method.startswith("cot"):
             if kwargs["phase"] == 0:
                 prompt = self.cot_sc_prompt_get_keywords.format(input=original)
             elif kwargs["phase"] == 2:
-                prompt = self.cot_sc_prompt_answer_question.format(context=current, question=original)
+                examples_str = "\n".join(
+                    [f"{example["question"]}{example["cot_answer"]}<Answer>\n{example["io_answer"]}</Answer>" for example in examples])
+                prompt = self.cot_sc_prompt_answer_question.format(context=current, question=original, examples=examples_str)
         elif method.startswith("tot"):
             logging.info("phase = {}".format(kwargs["phase"]))
             if kwargs["phase"] == 0:
@@ -137,7 +153,10 @@ A: \
                 logging.info("keywords_str: {}".format(keywords_str))
                 prompt = self.tot_prompt_verify_retrieved_documents.format(documents=current, input=original, keywords=keywords_str)
             elif kwargs["phase"] == 4:
-                prompt = self.tot_prompt_answer_question.format(context=current, question=original)
+                examples_str = "\n".join(
+                    [f"{example["question"]}{example["cot_answer"]}\n<Answer>{example["io_answer"]}</Answer>" for example
+                     in examples])
+                prompt = self.tot_prompt_answer_question.format(context=current, question=original, examples = examples_str)
 
         else:
             raise ValueError(f"generate_prompt: Unknown method: {method}")

@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import List, Callable
 from graph_of_thoughts import controller, language_models, operations
 import project_utils as project
-from project_utils import LM
 
 try:
     from .src.prompter import GSM8KPrompter
@@ -84,7 +83,7 @@ def tot() -> operations.GraphOfOperations:
 
 def got() -> operations.GraphOfOperations:
     """
-        Generates the Graph of Operations for the ToT method.
+        Generates the Graph of Operations for the GoT method.
 
         :return: Graph of Operations
         :rtype: GraphOfOperations

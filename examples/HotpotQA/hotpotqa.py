@@ -55,6 +55,25 @@ def probtree() -> operations.GraphOfOperations:
     return operations_graph
 
 
+def cot() -> operations.GraphOfOperations:
+    """
+            Generates the Graph of Operations for the CoT Method.
+
+            :return: Graph of Operations
+            :rtype: GraphOfOperations
+            """
+    retrieval_count = 5
+    operations_graph = operations.GraphOfOperations()
+    operations_graph.append_operation(operations.Generate(1, 1).named("Generate Keywords"))
+    operations_graph.append_operation(
+        operations.Retrieve(bm25_retriever_save_dir=(datasets_dir() / "HotpotQA" / "wikipedia_index_bm25"),
+                            k=retrieval_count).named("Retrieve Keywords"))
+    operations_graph.append_operation(operations.Generate(1, 1).named("Generate Answer"))
+    # operations_graph.append_operation(operations.GroundTruth())
+    return operations_graph
+
+
+
 def cot_sc_1() -> operations.GraphOfOperations:
     """
         Generates the Graph of Operations for the CoT-SC I Method.
@@ -223,7 +242,7 @@ def run(
 if __name__ == "__main__":
     budget = 30
     samples = [item for item in range(1)]
-    approaches = [cot_sc_2]
+    approaches = [tot]
 
     logging.basicConfig(
         level=logging.INFO,
@@ -231,6 +250,6 @@ if __name__ == "__main__":
         datefmt='%Y-%m-%d:%H:%M:%S'
     )
 
-    spent = run(samples, approaches, budget, "llama3-8b-ollama")
+    spent = run(samples, approaches, budget, "chatgpt") # llama3-8b-ollama
 
     logging.info(f"Spent {spent} out of {budget} budget.")

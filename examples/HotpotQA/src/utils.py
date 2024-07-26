@@ -1,7 +1,8 @@
 import ast
 import logging
 import re
-from typing import List, Counter
+from pathlib import Path
+from typing import List, Counter, Dict, Any
 
 from graph_of_thoughts.operations import Thought
 
@@ -44,3 +45,23 @@ def keep_most_frequent_keywords(thoughts: List[Thought], keep_best: int) -> List
     thought = thoughts[0]
     thought.state["keywords"] = most_common_keywords
     return [thought]
+
+
+def parse_examples() -> list[dict[str, str]]:
+    question_answers = []
+    with open(Path(__file__).resolve().parent / "probtree_prompt.txt", "r") as f:
+        text = f.readlines()[1:]
+        for i in range(0, len(text), 2):
+            match = re.search(r"So the answer is: (.*)\.", text[i+1])
+            if match:
+                answer = match.group(1)
+            else:
+                answer = ""
+            item = {
+                "question": text[i].removeprefix("Q: "),
+                "cot_answer": text[i + 1].removeprefix("A: "),
+                "io_answer": answer,
+            }
+            question_answers.append(item)
+    return question_answers
+

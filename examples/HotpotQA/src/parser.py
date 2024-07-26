@@ -40,7 +40,7 @@ class HotpotQAParser(parser.Parser):
                 new_state["current"] = text
                 new_state["phase"] = state["phase"] + 1
                 new_states.append(new_state)
-            elif state["method"].startswith("cot_sc"):
+            elif state["method"].startswith("cot_sc") or state["method"].startswith("cot"):
                 if state["phase"] == 0:
                     new_state = state.copy()
                     keywords_list = utils.extract_keywords(text)
