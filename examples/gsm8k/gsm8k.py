@@ -66,7 +66,7 @@ def tot() -> operations.GraphOfOperations:
         :return: Graph of Operations
         :rtype: GraphOfOperations
         """
-    num_branches = 1
+    num_branches = 5
     operations_graph = operations.GraphOfOperations()
     # Phase 1: setting up the equations
     operations_graph.append_operation(operations.Generate(1, num_branches).named("Generate Setup"))
@@ -75,6 +75,28 @@ def tot() -> operations.GraphOfOperations:
     # Phase 2: calculating the final results
     operations_graph.append_operation(operations.Generate(1, num_branches).named("Generate Final Answer"))
     operations_graph.append_operation(operations.Score().named("Score Final Answer"))
+    operations_graph.append_operation(operations.KeepBestN(1))
+
+    operations_graph.append_operation(operations.GroundTruth(utils.test_answer))
+    return operations_graph
+
+
+def got() -> operations.GraphOfOperations:
+    """
+        Generates the Graph of Operations for the GoT method.
+
+        :return: Graph of Operations
+        :rtype: GraphOfOperations
+        """
+    num_branches = 5
+    operations_graph = operations.GraphOfOperations()
+    # Phase 1: setting up the equations
+    operations_graph.append_operation(operations.Generate(1, num_branches).named("Generate Setup"))
+    operations_graph.append_operation(operations.Score().named("Score Setup"))
+    operations_graph.append_operation(operations.KeepBestN(1))
+    # Phase 2: calculating the final results
+    operations_graph.append_operation(operations.Generate(1, num_branches).named("Generate Final Answer"))
+    operations_graph.append_operation(operations.ScoreByFrequency(ignore_none=True).named("Score Final Answer By Frequency"))
     operations_graph.append_operation(operations.KeepBestN(1))
 
     operations_graph.append_operation(operations.GroundTruth(utils.test_answer))
@@ -173,7 +195,13 @@ def run(
                 method.__name__,
                 f"{data['id']}.json",
             )
+            # canvas_path = os.path.join(
+            #     results_folder,
+            #     method.__name__,
+            #     f"{data['id']}.canvas",
+            # )
             executor.output_graph(path)
+            # executor.generate_json_canvas(canvas_path)
             budget -= lm.cost
 
     return orig_budget - budget

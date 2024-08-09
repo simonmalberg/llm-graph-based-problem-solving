@@ -1,10 +1,8 @@
 import logging
-from typing import Dict, List, Union
+from typing import Dict, List, Union, Any
 from graph_of_thoughts import parser
 from . import utils
 import re
-
-
 
 
 class GSM8KParser(parser.Parser):
@@ -13,6 +11,9 @@ class GSM8KParser(parser.Parser):
 
     Inherits from the Parser class and implements its abstract methods.
     """
+
+    def parse_retrieve_answer(self, state: Dict, documents: Dict[Dict, Any]) -> List[Dict]:
+        pass
 
     def __init__(self) -> None:
         """
@@ -45,7 +46,7 @@ class GSM8KParser(parser.Parser):
                 new_state["current"] = int_answer
                 new_state["phase"] = 2
                 new_states.append(new_state)
-            elif state["method"] == "tot":
+            elif state["method"] == "tot" or state["method"] == "got":
                 logging.info("parse_generate_answer: phase = {}".format(state["phase"]))
                 if state["phase"] < 2:
                     new_state = state.copy()
@@ -75,7 +76,7 @@ class GSM8KParser(parser.Parser):
         for text in texts:
             logging.info(f"parse_score_answer: {text}")
         method = states[0]["method"]
-        if method == "tot":
+        if method == "tot" or method == "got":
             scores: List[float] = [float(utils.extract_score(10, text)) for text in texts]
             logging.info("parse_score_answer: scores: %s", scores)
             return scores

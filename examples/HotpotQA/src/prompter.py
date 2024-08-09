@@ -1,4 +1,7 @@
+import logging
 from typing import Dict, List
+
+from examples.HotpotQA.src import utils
 from graph_of_thoughts import prompter
 
 
@@ -10,13 +13,17 @@ class HotpotQAPrompter(prompter.Prompter):
     """
 
     io_prompt_get_keywords = """\
-<Instruction>Give me a list of keywords for a wikipedia lookup to be able to answer this question. Give the keywords in the following format: give the score in the format <Keywords>["keyword1", "keyword2"]</Keywords>.</Instruction>
+<Instruction>Give me a list of keywords for a wikipedia lookup to be able to answer this question. Give the keywords in the following format: <Keywords>["keyword1", "keyword2"]</Keywords>.</Instruction>
 <Question>{input}</Question>
 Output:
 """
 
     io_prompt_answer_question = """\
-<Instruction>Answer the question using the provided context. Only output the final answer directly without any other text.</Instruction>
+<Instruction>Answer the question using the provided context. Only output the final answer directly without any other text.
+<Examples>
+{examples}
+</Examples>
+</Instruction>
 <Context>{context}</Context>
 <Question>{question}</Question>
 Output:
@@ -259,15 +266,113 @@ Answer:
 """
 
 
+    child_aggregating_prompt = """\
+Given a question and a context, answer the question and explain why.
+
+{exampled}
+Context:
+{context}
+
+Question:
+{question}
+
+Answer:
+"""
+
+
+    cot_sc_prompt_get_keywords = """\
+    <Instruction> Give me a list of keywords for a wikipedia lookup to be able to answer this question. 
+    Think Step by Step, and finally give the keywords in the following format: <Keywords>["keyword1", "keyword2"]</Keywords>.
+    </Instruction>
+    <Question>{input}</Question>
+    Output:
+    """
+
+    cot_sc_prompt_answer_question = """\
+    <Context>{context}</Context>
+    <Instruction> Answer the question using the provided context. Think Step by Step, and finally give the answer in this exact format: <Answer>answer</Answer>.
+    Do not make the answer more than 5 words.
+    <Examples>
+    {examples}
+    </Examples>
+    </Instruction>
+    <Question>{question}</Question>
+    Output:
+    """
+
+    cot_zeroshot_prompt_answer_question = """\
+       <Context>{context}</Context>
+       <Instruction> Answer the question using the provided context. Think Step by Step, and finally give the answer in this exact format: <Answer>answer</Answer>.
+       Do not make the answer more than 5 words.
+       </Instruction>
+       <Question>{question}</Question>
+       Output:
+       """
+
+    tot_prompt_get_keywords = """\
+    <Instruction> Give me a list of keywords for a wikipedia lookup to be able to answer this question. 
+    Think Step by Step, and finally give the keywords in the following format: <Keywords>["keyword1", "keyword2"]</Keywords>.
+    </Instruction>
+    <Question>{input}</Question>
+    Output:
+    """
+
+    tot_prompt_verify_retrieved_documents = """\
+    <Instruction> To answer the question 
+    <Question>{input}</Question>
+    You used the list of keywords <Keywords>{keywords}</Keywords> and was able to retrieve the following documents:
+    <Documents>
+    {documents}
+    </Documents>
+    
+    If the documents retrieved are sufficient to correctly answer the question, give the final answer in this exact format: <Answer>answer</Answer>. 
+    Do not make the answer more than 5 words. Otherwise if you need to update the keywords and search again, give the keywords in the following format: <Keywords>["keyword1", "keyword2"]</Keywords>.
+    </Instruction>
+    """
+
+    tot_prompt_answer_question = """\
+        <Context>{context}</Context>
+        <Instruction> Answer the question using the provided context. Think Step by Step, and finally give the answer in this exact format: <Answer>answer</Answer>.
+        Do not make the answer more than 5 words.
+        <Examples>
+        {examples}
+        </Examples>
+        </Instruction>
+        <Question>{question}</Question>
+        Output:
+        """
+
+    plan_solve_answer_question = """\
+    <Instruction>Answer the question using the provided context. Only output the final answer directly without any other text.
+    {plan_solve_prompt}
+    </Instruction>
+    <Context>{context}</Context>
+    <Question>{question}</Question>
+    
+    """
+
+    # The Plan and Solve Prompt from Wang et al. (2023)
+    plan_solve_basic_prompt = "Let's first understand the problem and devise a plan to solve the problem. " \
+                              "Then, let's carry out the plan to solve the problem step by step. " \
+                              "Give the final answer in this format: <Answer>answer</Answer>"
+
+    # The Plan and Solve Plus Prompt from Wang et al. (2023)
+    plan_solve_plus_prompt = "Let's first understand the problem, extract relevant variables and their corresponding numerals, " \
+                             "and make and devise a complete plan. Then, let's carry out the plan, calculate intermediate variables " \
+                             "(pay attention to correct numerical calculation and commonsense), " \
+                             "solve the problem step by step, and show the answer. " \
+                             "Give the final answer in this format: <Answer>answer</Answer>"
 
     def generate_prompt(self, num_branches: int, original: str, current: str, method: str, **kwargs) -> str:
         assert num_branches == 1, "Branching should be done via multiple requests."
+        examples = utils.parse_examples()
         if method.startswith("io"):
             if kwargs["phase"] == 0:
                 prompt = self.io_prompt_get_keywords.format(input=original)
             elif kwargs["phase"] == 2:
-                prompt = self.io_prompt_answer_question.format(context=current, question=original)
-        if method.startswith("probtree"):
+                examples_str = "\n".join([f"{example["question"]}<Answer>{example["io_answer"]}</Answer>" for example in examples])
+                prompt = self.io_prompt_answer_question.format(context=current, question=original, examples=examples_str)
+        elif method.startswith("probtree"):
             if kwargs.get("openbook_qa", False):
                 prompt = self.open_book_generation_prompt.format(question=kwargs["question"], examples=self.open_book_examples, context=kwargs["context"])
             elif kwargs.get("closedbook_qa", False):
@@ -276,7 +381,46 @@ Answer:
                 prompt = self.child_aggregating_prompt.format(question=kwargs["question"], context=kwargs["context"], examples=self.child_aggregating_examples)
             else:
                 prompt = self.tree_generation_prompt.format(question=original, examples=f"{self.tree_generation_examples}\n{self.tree_generation_examples}")
-        print(prompt)
+        elif method.startswith("cot_sc") or method.startswith("cot"):
+            if kwargs["phase"] == 0:
+                prompt = self.cot_sc_prompt_get_keywords.format(input=original)
+            elif kwargs["phase"] == 2:
+                examples_str = "\n".join(
+                    [f"{example["question"]}{example["cot_answer"]}<Answer>\n{example["io_answer"]}</Answer>" for example in examples])
+                if method == "cot_zeroshot":
+                    prompt = self.cot_zeroshot_prompt_answer_question.format(context=current, question=original)
+                else:
+                    prompt = self.cot_sc_prompt_answer_question.format(context=current, question=original,
+                                                                       examples=examples_str)
+        elif method == "plan_solve_basic":
+            if kwargs["phase"] == 0:
+                prompt = self.io_prompt_get_keywords.format(input=original)
+            elif kwargs["phase"] == 2:
+                prompt = self.plan_solve_answer_question.format(context=current, question=original, plan_solve_prompt = self.plan_solve_basic_prompt)
+        elif method == "plan_solve_plus":
+            if kwargs["phase"] == 0:
+                prompt = self.io_prompt_get_keywords.format(input=original)
+            elif kwargs["phase"] == 2:
+                prompt = self.plan_solve_answer_question.format(context=current, question=original,
+                                                                plan_solve_prompt=self.plan_solve_plus_prompt)
+        elif method.startswith("tot"):
+            logging.info("phase = {}".format(kwargs["phase"]))
+            if kwargs["phase"] == 0:
+                prompt = self.tot_prompt_get_keywords.format(input=original)
+            elif kwargs["phase"] == 2:
+                keywords_str = "["+", ".join([f"\"{keyword}\"" for keyword in kwargs["keywords"]])+"]"
+                logging.info("keywords_str: {}".format(keywords_str))
+                prompt = self.tot_prompt_verify_retrieved_documents.format(documents=current, input=original, keywords=keywords_str)
+            elif kwargs["phase"] == 4:
+                examples_str = "\n".join(
+                    [f"{example["question"]}{example["cot_answer"]}\n<Answer>{example["io_answer"]}</Answer>" for example
+                     in examples])
+                prompt = self.tot_prompt_answer_question.format(context=current, question=original, examples = examples_str)
+
+        else:
+            raise ValueError(f"generate_prompt: Unknown method: {method}")
+        logging.info("full_prompt: %s", prompt)
+
         return prompt
 
     def aggregation_prompt(self, state_dicts: List[Dict], **kwargs) -> str:

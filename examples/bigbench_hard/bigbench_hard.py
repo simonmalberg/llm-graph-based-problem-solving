@@ -4,7 +4,7 @@ import os
 import re
 import traceback
 from pathlib import Path
-from typing import Dict, List, Callable, Union
+from typing import Dict, List, Callable, Union, Any
 
 import project_utils as project
 try:
@@ -173,7 +173,7 @@ class BigBenchHardPrompter(prompter.Prompter):
                     full_examples.append(example.split("\nA: ")[0])  # remove steps for IO
                 elif method.startswith("cot"):
                     full_examples.append(example)
-                elif method.startswith("tot"):
+                elif method.startswith("tot") or method.startswith("got"):
                     full_examples = []
                 else:
                     raise ValueError(f"generate_prompt: Unknown method: {method}")
@@ -191,7 +191,7 @@ class BigBenchHardPrompter(prompter.Prompter):
             elif method == "cot_zeroshot":
                 full_prompt = self.cot_zeroshot_prompt.format(instruction=f"{self.sys_prompt}\n{prompt}",
                                                               input=input_str)
-            elif method.startswith("tot"):
+            elif method.startswith("tot") or method.startswith("got"):
                 if current is None or current == "":
                     full_prompt = self.tot_generate_prompt.format(instruction=f"{self.sys_prompt}\n{prompt}",
                                                                   input=input_str)
@@ -218,7 +218,7 @@ class BigBenchHardPrompter(prompter.Prompter):
         inputs = [state_dict["original"] for state_dict in state_dicts]
         logging.info("score_prompt st_dicts: %s", json.dumps(state_dicts))
         final_prompt = ""
-        if (state_dicts[0]["phase"] < 2):
+        if state_dicts[0]["phase"] < 2:
             final_prompt = self.tot_vote_step_prompt.format(step=thoughts[0], input=inputs[0])
         else:
             final_prompt = self.tot_vote_final_prompt.format(answer=thoughts[0], input=inputs[0])
@@ -235,6 +235,9 @@ class BigBenchHardParser(parser.Parser):
 
     Inherits from the Parser class and implements its abstract methods.
     """
+
+    def parse_retrieve_answer(self, state: Dict, documents: Dict[Dict, Any]) -> List[Dict]:
+        pass
 
     def parse_generate_answer(self, state: Dict, texts: List[str]) -> List[Dict]:
         """
@@ -261,7 +264,7 @@ class BigBenchHardParser(parser.Parser):
                 new_state["current"] = answer_str
                 new_state["phase"] = 2
                 new_states.append(new_state)
-            elif state["method"].startswith("tot"):
+            elif state["method"].startswith("tot") or state["method"].startswith("got"):
                 if state["phase"] == 0:
                     logging.info("parse_generate_answer: tot phase 0: extracting step")
                     step_str = extract_step(text)
@@ -427,6 +430,28 @@ def tot() -> operations.GraphOfOperations:
     return operations_graph
 
 
+def got() -> operations.GraphOfOperations:
+    """
+     Generates the Graph of Operations for the GOT method.
+
+     :return: Graph of Operations
+     :rtype: GraphOfOperations
+     """
+    num_branches = 3
+    keep_best = 2
+
+    operations_graph = operations.GraphOfOperations()
+
+    operations_graph.append_operation(operations.Generate(1, num_branches).named("Generate Intermediate Step"))
+    operations_graph.append_operation(operations.Score().named("Score Intermediate Step"))
+    operations_graph.append_operation(operations.KeepBestN(keep_best).named("Keep Best Intermediate Steps"))
+    operations_graph.append_operation(operations.Generate(1, num_branches).named("Generate Answers Based on Intermediate Step"))
+    operations_graph.append_operation(operations.ScoreByFrequency(ignore_none=True).named("Score Answers by Frequency"))
+    operations_graph.append_operation(operations.KeepBestN(1).named("Keep Most Frequent Answer"))
+    operations_graph.append_operation(operations.GroundTruth(test_answer).named("Evaluate GroundTruth"))
+    return operations_graph
+
+
 def run(
         samples_per_task: int,
         methods: List[Callable[[], operations.GraphOfOperations]],
@@ -515,8 +540,8 @@ def run(
 if __name__ == "__main__":
     budget = 30
     samples = 3
-    approaches = [io, cot, cot_zeroshot, cot_sc, tot, plan_solve, plan_solve_plus]
-    # approaches = [tot]
+    approaches = [io, cot, cot_zeroshot, cot_sc, tot, plan_solve, plan_solve_plus, got]
+    # approaches = [got]
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s,%(msecs)03d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s',
