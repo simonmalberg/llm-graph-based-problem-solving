@@ -161,24 +161,3 @@ class ChatGPT(AbstractLanguageModel):
             for response in query_response
             for choice in response.choices
         ]
-
-    def get_response_logprobs(
-            self, query_response: Union[List[ChatCompletion], ChatCompletion]
-    ) -> List[Dict]:
-        """
-        Extract the logprobs from the query response.
-
-        :param query_response: The response dictionary (or list of dictionaries) from the OpenAI model.
-        :type query_response: Union[List[ChatCompletion], ChatCompletion]
-        :return: List of logprobs.
-        :rtype: List[Dict]
-        """
-        if not isinstance(query_response, List):
-            query_response = [query_response]
-        if query_response[0].choices[0].logprobs:
-            return [
-                choice.logprobs
-                for response in query_response
-                for choice in response.choices
-            ]
-

@@ -137,7 +137,7 @@ class BaseResultPlotter(ABC):
             ax2_width = 0.25
             ax2_offset = 0.25
             ax.bar(positions, [sum(scores) / len(scores) for scores in scores_ordered], color="black", alpha=0.5, width=0.25)
-            ax.set_ylim(0, 1)
+            ax.set_ylim(self.config.y_lower, self.config.y_upper)
         else:
             ax.boxplot(scores_ordered, positions=positions, meanline=True, showmeans=True)
             ax.set_ylim(self.config.y_lower, self.config.y_upper)
@@ -166,7 +166,7 @@ class BaseResultPlotter(ABC):
                 number_of_ticks = 11
                 tick_interval = 0.1
             else:
-                number_of_ticks = len(ax.get_yticks())
+                number_of_ticks = len(ax.get_yticks() + 1)
                 tick_interval = self.config.cost_upper / number_of_ticks
             ax2_ticks = [tick_interval * i for i in range(number_of_ticks)]
             ax2.set_yticks(ax2_ticks)
