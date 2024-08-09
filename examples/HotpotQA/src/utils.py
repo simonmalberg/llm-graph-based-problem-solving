@@ -3,7 +3,10 @@ import logging
 import re
 import string
 from pathlib import Path
-from typing import List, Counter, Dict, Any
+from typing import List, Counter
+import json
+from termcolor import colored
+from openai.types.chat.chat_completion import ChatCompletion
 
 from graph_of_thoughts.operations import Thought
 
@@ -125,10 +128,7 @@ def exact_match_score(prediction, ground_truth) -> bool:
         @param prediction:
         @return:
         """
-    return normalize_answer(prediction) == normalize_answer(ground_truth)import json
-from termcolor import colored
-from openai.types.chat.chat_completion import ChatCompletion
-from typing import List, Any
+    return normalize_answer(prediction) == normalize_answer(ground_truth)
 
 
 def parse_tree_and_extract_logprobs(llm_response: ChatCompletion):

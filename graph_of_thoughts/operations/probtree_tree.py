@@ -1,11 +1,22 @@
 from dataclasses import asdict, dataclass
-from typing import Dict, List
+from typing import Any, Dict, List
 import re
+import bm25s
 
 from graph_of_thoughts.language_models.abstract_language_model import AbstractLanguageModel
 from graph_of_thoughts.prompter.prompter import Prompter
 from graph_of_thoughts.parser.parser import Parser
 
+
+def parse_bm25_documents(bm25_result: bm25s.Results) -> str:
+    context_str = ""
+    documents = bm25_result.documents[0]
+    for i, doc in enumerate(documents):
+        context_str += f"\n#{i+1} Wikipedia Title: "
+        context_str += doc["title"]
+        context_str += "\nText: "
+        context_str += "".join(doc["text"])
+    return context_str
 
 
 def postprocess_answer(response):
@@ -69,12 +80,13 @@ class Answers:
 
 class Node:
 
-    def __init__(self, question: str, logprob: float = None) -> None:
+    def __init__(self, retriever: bm25s.BM25, question: str, logprob: float = None) -> None:
         self.question: str = question
         self.children: List[Node] = []
         self.references: Dict[int, Node] = dict()
         self.logprob: float = logprob
         self.answers: Answers = Answers()
+        self.retriever = retriever
 
     def to_dict(self):
         return {
@@ -126,12 +138,16 @@ class Node:
         response = lm.query(prompt_cb, num_responses=1, logprobs=True)
         answer_cb = postprocess_answer(response)
         self.answers.closed_book = Answer(text=answer_cb[0], text_with_reasoning=answer_cb[2], logprob=answer_cb[1])
-        # # open book multihop
-        # with open('graph_of_thoughts/prompter/prompts/probtree_ob_multihop.txt', 'r') as file:
-        #     prompt_ob_multihop = file.read()
-        # # open book singlehop
-        # with open('graph_of_thoughts/prompter/prompts/probtree_ob_singlehop.txt', 'r') as file:
-        #     prompt_ob_singlehop = file.read()
+        # open book multihop
+        with open('graph_of_thoughts/prompter/prompts/probtree_ob_multihop.txt', 'r') as file:
+            prompt_ob_multihop = file.read()
+        question_tokenized = bm25s.tokenize(self.question_with_reference_answers, stopwords="en")
+        context_raw = self.retriever.retrieve(question_tokenized, k=5)
+        context = parse_bm25_documents(context_raw)
+        prompt_ob_multihop = prompt_ob_multihop.format(question=self.question_with_reference_answers, context=context)
+        response = lm.query(prompt_ob_multihop, num_responses=1, logprobs=True)
+        answer_ob_multihop = postprocess_answer(response)
+        self.answers.open_book = Answer(text=answer_ob_multihop[0], text_with_reasoning=answer_ob_multihop[2], logprob=answer_ob_multihop[1])
         # child aggregating
         if len(self.children) > 0:
             with open('graph_of_thoughts/prompter/prompts/probtree_ca.txt', 'r') as file:

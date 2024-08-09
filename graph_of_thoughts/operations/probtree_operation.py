@@ -1,5 +1,6 @@
 import re
 from typing import List
+import bm25s
 from graph_of_thoughts.language_models.abstract_language_model import AbstractLanguageModel
 from graph_of_thoughts.operations.operations import Operation, OperationType
 from graph_of_thoughts.operations.thought import Thought
@@ -21,9 +22,10 @@ class ProbtreeExecutionGraph(Operation):
 
     operation_type: OperationType = OperationType.probtree_reason
 
-    def __init__(self) -> None:
+    def __init__(self, bm25_retriever_save_dir: str) -> None:
         super().__init__()
         self.thoughts: List[Thought] = []
+        self.retriever = bm25s.BM25.load(bm25_retriever_save_dir, load_corpus=True, mmap=True)
 
     def build_tree(self) -> Node:
         try:
@@ -33,12 +35,12 @@ class ProbtreeExecutionGraph(Operation):
                 subquestions = subquestions_and_logprob[0]
                 logprob = subquestions_and_logprob[1]
                 if not (node := node_for_question.get(question)):
-                    node = Node(question=question, logprob=logprob)
+                    node = Node(question=question, logprob=logprob, retriever=self.retriever)
                     if tree is None:
                         tree = node
                 node_for_question[question] = node
                 for subquestion in subquestions:
-                    subnode = Node(question=subquestion)
+                    subnode = Node(question=subquestion, retriever=self.retriever)
                     reference_ids = get_list_of_reference_ids(subquestion)
                     if len(reference_ids) > 0:
                         for reference_id in reference_ids:

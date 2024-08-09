@@ -38,7 +38,6 @@ Text: Mount Panorama Circuit is a motor racing track located in Bathurst, New So
 Text: This is a list of significant car races that have been held at the Mount Panorama Circuit near Bathurst, New South Wales, Australia. As Australia's most famous motor racing circuit, Mount Panorama has had a significant influence on the history and industry of Australian motor racing.
 Q: What is the length of the track where the 2013 Liqui Moly Bathurst 12 Hour was staged?
 A: The 2013 Liqui Moly Bathurst 12 Hour was staged at the Mount Panorama Circuit. Mount Panorama Circuit is 6.213 km long. So the answer is: 6.213 km long.
-
 {context}
 Q: {question}
 A: 
