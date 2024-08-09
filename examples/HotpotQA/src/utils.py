@@ -21,10 +21,6 @@ from typing import List, Any
 
 
 def parse_tree_and_extract_logprobs(llm_response: ChatCompletion):
-    # prompt = llm_response['prompt']
-    # question = prompt.split('\n')[-2][len('Q: '):].strip()
-    # print(colored(question, 'red'))
-    # print(item['response']['text'])
     try:
         qds = llm_response.choices[0].message.content.strip()
         if qds.endswith('.'):
@@ -33,9 +29,6 @@ def parse_tree_and_extract_logprobs(llm_response: ChatCompletion):
     except:
         hqdt = None
     
-
-
-
     tokens = [per_token.token for per_token in llm_response.choices[0].logprobs.content]
     token_logprobs = [per_token.logprob for per_token in llm_response.choices[0].logprobs.content]
     if len(token_logprobs) == 0:
@@ -43,11 +36,6 @@ def parse_tree_and_extract_logprobs(llm_response: ChatCompletion):
 
     if tokens[-1] == '.':
         token_logprobs = token_logprobs[:-1]
-        # print(answer_logprobs)
-    # else:
-    #     answer_logprobs = token_logprobs[pos+6:]
-
-    # print(tokens[pos+6:-1])
     
     st, ed = 0, 0
     pos = 0

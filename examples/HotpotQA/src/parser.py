@@ -27,7 +27,7 @@ class HotpotQAParser(parser.Parser):
                     text = text.split("<Keywords>")[1].split("</Keywords>")[0]
                     try:
                         keywords_list = ast.literal_eval(text)
-                    except Exception as äe:
+                    except Exception as e:
                         logging.error(f"Could not parse keywords: {text}")
                         keywords_list = []
                     new_state["keywords"] = keywords_list

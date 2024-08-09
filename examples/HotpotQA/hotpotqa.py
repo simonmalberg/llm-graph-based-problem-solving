@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 from typing import List, Callable
 from graph_of_thoughts import controller, language_models, operations
+from graph_of_thoughts.operations.probtree_operation import ProbtreeExecutionGraph
 from project_utils import datasets_dir
 
 try:
@@ -44,6 +45,9 @@ def probtree() -> operations.GraphOfOperations:
     operations_graph = operations.GraphOfOperations()
 
     operations_graph.append_operation(operations.Generate(1, 1, True))
+    reason = ProbtreeExecutionGraph()
+    reason.named = "ProbTree Reasoning"
+    operations_graph.append_operation(reason)
     # operations_graph.append_operation(operations.Retrieve(bm25_retriever_save_dir=(datasets_dir() / "HotpotQA" / "wikipedia_index_bm25"), k=5))
     # operations_graph.append_operation(operations.Generate(1, 1))
     # # another generate process including the keywords and another prompt
