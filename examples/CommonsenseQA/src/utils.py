@@ -13,9 +13,11 @@ def extract_answer(text: str):
         logging.error(f"extract_answer: unable to extract answer from {text}")
     return None
 
+
 min_score = 1
 max_score = 5
 scoring_range = range(min_score, max_score + 1)
+
 
 def extract_score(score_range: range, text: str):
     match = re.search(r'<Score>(.*?)<\/Score>', text)
@@ -47,7 +49,8 @@ def test_answer(state: Dict) -> bool:
         return ground_truth == current_answer
     except:
         return False
-    
+
+
 def generate_question_string(question: dict):
     # Assemble a list of choice strings formatted with labels and text
     choices = [f'{choice["label"]} {choice["text"]}' for choice in question['choices']]

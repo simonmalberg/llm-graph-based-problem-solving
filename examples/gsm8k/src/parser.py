@@ -21,7 +21,7 @@ class GSM8KParser(parser.Parser):
         """
         self.cache = {}
 
-    def parse_generate_answer(self, state: Dict, texts: List[str]) -> Dict:
+    def parse_generate_answer(self, state: Dict, texts: List[str]) -> List[Dict]:
         """
         Parse the response from the language model for a generate prompt.
 
