@@ -18,7 +18,7 @@ class HotpotQAParser(parser.Parser):
         """
         self.cache = {}
 
-    def parse_generate_answer(self, state: Dict, texts: List[str]) -> List[Dict]:
+    def parse_generate_answer(self, state: Dict, texts: Union[List[str], Any]) -> Dict:
         new_states = []
         for text in texts:
             logging.info("full response = {}".format(text))
@@ -37,7 +37,8 @@ class HotpotQAParser(parser.Parser):
                 new_states.append(new_state)
             elif state["method"].startswith("probtree"):
                 new_state = state.copy()
-                new_state["current"] = text
+                output_tree = utils.parse_tree_and_extract_logprobs(text)
+                new_state["current"] = output_tree
                 new_state["phase"] = state["phase"] + 1
                 new_states.append(new_state)
             elif state["method"].startswith("cot_sc") or state["method"].startswith("cot") or state["method"].startswith("plan_solve"):

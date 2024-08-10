@@ -15,6 +15,7 @@ from abc import ABC, abstractmethod
 import itertools
 import bm25s
 
+# from graph_of_thoughts.operations.probtree_tree import GraphBuildError, ProbtreeExecutionGraph
 from graph_of_thoughts.operations.thought import Thought
 from graph_of_thoughts.language_models import AbstractLanguageModel
 from graph_of_thoughts.prompter import Prompter
@@ -35,7 +36,7 @@ class OperationType(Enum):
     keep_valid: int = 6
     ground_truth_evaluator: int = 7
     selector: int = 8
-    graph_builder: int = 9
+    probtree_reason: int = 9
     retrieve: int = 10
 
 
@@ -483,9 +484,9 @@ class Generate(Operation):
             prompt = prompter.generate_prompt(self.num_branches_prompt, **base_state)
             self.logger.debug("Prompt for LM: %s", prompt)
             if self.get_logprobs:
-                responses = lm.get_response_logprobs(
-                    lm.query(prompt, num_responses=self.num_branches_response, logprobs=True)
-                )
+                responses = lm.query(prompt, num_responses=self.num_branches_response, logprobs=True)
+                if not isinstance(responses, List):
+                    responses = [responses]
             else:
                 responses = lm.get_response_texts(
                     lm.query(prompt, num_responses=self.num_branches_response)
@@ -513,15 +514,6 @@ class Generate(Operation):
         self.logger.info(
             "Generate operation %d created %d new thoughts", self.id, len(self.thoughts)
         )
-
-# class GraphBuilder(Operation):
-#     """
-#     Operation to create a probability tree graph.
-#     """
-#     operation_type: OperationType = OperationType.graph_builder
-
-#     def _execute(self, lm: AbstractLanguageModel, prompter: Prompter, parser: Parser, **kwargs) -> None:
-#         pass
 
 
 class Retrieve(Operation):

@@ -3,7 +3,9 @@ import logging
 import re
 import string
 from pathlib import Path
-from typing import List, Counter, Dict, Any
+from typing import List, Counter
+import json
+from openai.types.chat.chat_completion import ChatCompletion
 
 from graph_of_thoughts.operations import Thought
 
@@ -91,11 +93,11 @@ def normalize_answer(s):
 
 def f1_score(prediction, ground_truth) -> (float, float, float):
     """
-        Code adapted from the ProbTree repository (https://github.com/THU-KEG/ProbTree)
-        @param ground_truth:
-        @param prediction:
-        @return:
-        """
+    Code adapted from the ProbTree repository (https://github.com/THU-KEG/ProbTree)
+    @param ground_truth:
+    @param prediction:
+    @return:
+    """
     normalized_prediction = normalize_answer(prediction)
     normalized_ground_truth = normalize_answer(ground_truth)
 
@@ -120,9 +122,60 @@ def f1_score(prediction, ground_truth) -> (float, float, float):
 
 def exact_match_score(prediction, ground_truth) -> bool:
     """
-        Code taken from the ProbTree repository (https://github.com/THU-KEG/ProbTree)
-        @param ground_truth:
-        @param prediction:
-        @return:
-        """
+    Code taken from the ProbTree repository (https://github.com/THU-KEG/ProbTree)
+    @param ground_truth:
+    @param prediction:
+    @return:
+    """
     return normalize_answer(prediction) == normalize_answer(ground_truth)
+
+
+def parse_tree_and_extract_logprobs(llm_response: ChatCompletion):
+    """
+    Code adapted from the ProbTree repository (https://github.com/THU-KEG/ProbTree)
+    """
+    try:
+        qds = llm_response.choices[0].message.content.strip()
+        if qds.endswith('.'):
+            qds = qds[:-1]
+        hqdt = json.loads(qds)
+    except:
+        hqdt = None
+    
+    tokens = [per_token.token for per_token in llm_response.choices[0].logprobs.content]
+    token_logprobs = [per_token.logprob for per_token in llm_response.choices[0].logprobs.content]
+    if len(token_logprobs) == 0:
+        return
+
+    if tokens[-1] == '.':
+        token_logprobs = token_logprobs[:-1]
+    
+    st, ed = 0, 0
+    pos = 0
+    qds = {}
+    for sub_question, qd in hqdt.items():
+        while pos < len(tokens):
+            #print("".join(tokens[max(pos-1, 0): min(pos+2, len(tokens))]))
+            # if "[" in tokens[pos] and ": [\"" in "".join(tokens[max(pos-1, 0): min(pos+2, len(tokens))]):
+            if "[" in tokens[pos]:
+                st = pos
+                break
+            pos += 1
+        while pos < len(tokens):
+            # if "]" in tokens[pos] and "\"]" in "".join(tokens[max(pos-1, 0): min(pos+2, len(tokens))]):
+            if "]" in tokens[pos]:
+                ed = pos
+                break
+            pos += 1
+        assert pos < len(tokens), str(st) + " | " + str(ed)
+        qd_score = sum(token_logprobs[st:ed+1]) / len(token_logprobs[st:ed+1])
+        if any([x == sub_question for x in qd]):
+            qd, qd_score = [], None
+        qds[sub_question] = (qd, qd_score)
+        print(sub_question)
+        print("".join(tokens[st:ed+1]))
+    
+    
+    # answer_logprob = sum(token_logprobs) / len(token_logprobs)
+    # data[question] = [hqdt, answer_logprob]
+    return qds
