@@ -38,6 +38,8 @@ class ProbtreeReasoning(Operation):
                     node = Node(question=question, logprob=logprob, retriever=self.retriever)
                     if tree is None:
                         tree = node
+                if node.logprob is None:
+                    node.logprob = logprob
                 node_for_question[question] = node
                 for subquestion in subquestions:
                     subnode = Node(question=subquestion, retriever=self.retriever)

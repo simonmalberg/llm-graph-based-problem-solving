@@ -100,9 +100,6 @@ class Node:
 
     def add_child(self, child: 'Node'):
         self.children.append(child)
-    
-    def set_logprob(self, logprob: float):
-        self.logprob = logprob
 
     @property
     def question_with_reference_answers(self) -> str:
@@ -128,6 +125,14 @@ class Node:
             if child.answers.is_empty:
                 return False
         return True
+    
+    def get_discounted_ca_logprob(self, ca_answer_confidence: float):
+        num_children = len(self.children)
+        factor = 1.0 / (num_children + 2)
+        question_decomposition_score = self.logprob
+        children_max_scores = [child.answers.final_answer.logprob for child in self.children]
+        return factor * (question_decomposition_score + ca_answer_confidence + sum(children_max_scores))
+
         
     def execute(self, lm: AbstractLanguageModel, prompter: Prompter, parser: Parser, **kwargs):
         if not self.executable:
@@ -160,4 +165,5 @@ class Node:
             prompt_ca = prompt_ca.format(question=self.question_with_reference_answers, context=context)
             response = lm.query(prompt_ca, num_responses=1, logprobs=True)
             answer_ca = postprocess_answer(response)
-            self.answers.child_aggregating = Answer(text=answer_ca[0], text_with_reasoning=answer_ca[2], logprob=answer_ca[1])
+            discounted_ca_logprob = self.get_discounted_ca_logprob(ca_answer_confidence=answer_ca[1])
+            self.answers.child_aggregating = Answer(text=answer_ca[0], text_with_reasoning=answer_ca[2], logprob=discounted_ca_logprob)
