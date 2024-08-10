@@ -20,13 +20,14 @@ def parse_bm25_documents(bm25_result: bm25s.Results) -> str:
 
 
 def postprocess_answer(response):
+    """
+    Code adapted from the ProbTree repository (https://github.com/THU-KEG/ProbTree)
+    """
     tokens = [per_token.token for per_token in response.choices[0].logprobs.content]
     token_logprobs = [per_token.logprob for per_token in response.choices[0].logprobs.content]
     cot = response.choices[0].message.content.strip()
     if len(token_logprobs) == 0:
         return 'ERROR: empty output', -100, cot
-    # if "Unknown" in cot:
-    #     return "Unknow", sum(token_logprobs) / len(token_logprobs), cot
     pos = 0
     for idx, token in enumerate(tokens):
         if token.strip() == 'So' and idx + 1 <= len(tokens) and tokens[idx + 1].strip() == 'the' and idx + 2 <= len(tokens) and tokens[idx + 2].strip() == 'answer' and idx + 3 <= len(tokens) and tokens[idx + 3].strip() == 'is' and idx + 4 <= len(tokens) and tokens[idx + 4].strip() == ':':
@@ -160,49 +161,3 @@ class Node:
             response = lm.query(prompt_ca, num_responses=1, logprobs=True)
             answer_ca = postprocess_answer(response)
             self.answers.child_aggregating = Answer(text=answer_ca[0], text_with_reasoning=answer_ca[2], logprob=answer_ca[1])
-        
-    
-
-
-    
-
-# if __name__ == "__main__":
-#     test_dict = {
-#         "Who was known by his stage name Aladin and helped organizations improve their performance as a consultant?": [
-#         [
-#             "What was the stage name of the person known as Aladin?",
-#             "Who helped organizations improve their performance as a consultant?"
-#         ],
-#         -0.15340366200627834
-#         ],
-#         "What was the stage name of the person known as Aladin?": [
-#         [
-#             "Who was known by the stage name Aladin?",
-#             "What was the stage name of <1>?"
-#         ],
-#         -0.06493883921907692
-#         ]
-#     }
-#     operations_graph = operations.GraphOfOperations()
-#     lm = language_models.ChatGPT(
-#                 os.path.join(
-#                     os.path.dirname(__file__),
-#                     "../../language_models/config.json",
-#                 ),
-#                 model_name="chatgpt",
-#                 cache=True,
-#             )
-#     exection_graph = ProbtreeExecutionGraph()
-#     operations_graph.add_operation(exection_graph)
-#     executor = controller.Controller(
-#                 lm,
-#                 operations_graph,
-#                 HotpotQAPrompter(),
-#                 HotpotQAParser(),
-#                 {
-#                     "original": test_dict,
-#                     "current": "",
-#                     "phase": 0,
-#                 },
-#             )
-#     pass

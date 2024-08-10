@@ -18,7 +18,7 @@ def get_list_of_reference_ids(question: str) -> List[int]:
     print(integers)
     return integers
 
-class ProbtreeExecutionGraph(Operation):
+class ProbtreeReasoning(Operation):
 
     operation_type: OperationType = OperationType.probtree_reason
 

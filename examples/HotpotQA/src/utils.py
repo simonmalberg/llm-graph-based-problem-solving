@@ -5,7 +5,6 @@ import string
 from pathlib import Path
 from typing import List, Counter
 import json
-from termcolor import colored
 from openai.types.chat.chat_completion import ChatCompletion
 
 from graph_of_thoughts.operations import Thought
@@ -94,11 +93,11 @@ def normalize_answer(s):
 
 def f1_score(prediction, ground_truth) -> (float, float, float):
     """
-        Code adapted from the ProbTree repository (https://github.com/THU-KEG/ProbTree)
-        @param ground_truth:
-        @param prediction:
-        @return:
-        """
+    Code adapted from the ProbTree repository (https://github.com/THU-KEG/ProbTree)
+    @param ground_truth:
+    @param prediction:
+    @return:
+    """
     normalized_prediction = normalize_answer(prediction)
     normalized_ground_truth = normalize_answer(ground_truth)
 
@@ -123,15 +122,18 @@ def f1_score(prediction, ground_truth) -> (float, float, float):
 
 def exact_match_score(prediction, ground_truth) -> bool:
     """
-        Code taken from the ProbTree repository (https://github.com/THU-KEG/ProbTree)
-        @param ground_truth:
-        @param prediction:
-        @return:
-        """
+    Code taken from the ProbTree repository (https://github.com/THU-KEG/ProbTree)
+    @param ground_truth:
+    @param prediction:
+    @return:
+    """
     return normalize_answer(prediction) == normalize_answer(ground_truth)
 
 
 def parse_tree_and_extract_logprobs(llm_response: ChatCompletion):
+    """
+    Code adapted from the ProbTree repository (https://github.com/THU-KEG/ProbTree)
+    """
     try:
         qds = llm_response.choices[0].message.content.strip()
         if qds.endswith('.'):
@@ -170,7 +172,7 @@ def parse_tree_and_extract_logprobs(llm_response: ChatCompletion):
         if any([x == sub_question for x in qd]):
             qd, qd_score = [], None
         qds[sub_question] = (qd, qd_score)
-        print(colored(sub_question, 'blue'))
+        print(sub_question)
         print("".join(tokens[st:ed+1]))
     
     

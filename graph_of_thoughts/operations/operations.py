@@ -515,29 +515,6 @@ class Generate(Operation):
             "Generate operation %d created %d new thoughts", self.id, len(self.thoughts)
         )
 
-# class GraphExecutor(Operation):
-#     """
-#     Operation to create a probability tree graph.
-#     """
-#     operation_type: OperationType = OperationType.graph_builder
-
-#     def __init__(self, bm25_retriever_save_dir: str, k: int = 5):
-#         self.k = k
-#         self.retriever = bm25s.BM25.load(bm25_retriever_save_dir, load_corpus=True, mmap=True)
-#         self.thoughts: List[Thought] = []
-
-
-#     def _execute(self, lm: AbstractLanguageModel, prompter: Prompter, parser: Parser, **kwargs) -> None:
-#         previous_thought: List[Thought] = self.get_previous_thoughts()[0]
-#         hqdt = previous_thought.state["current"]
-#         try:
-#             probtree_execution_graph = ProbtreeExecutionGraph(hqdt)
-#         except GraphBuildError:
-#             self.logger.error("Error building graph")
-#             return
-#         ...
-
-
 
 class Retrieve(Operation):
     """"
