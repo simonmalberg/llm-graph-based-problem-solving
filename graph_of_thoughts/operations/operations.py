@@ -530,13 +530,13 @@ class Retrieve(Operation):
         self.thoughts: List[Thought] = []
 
     def _execute(self, lm: AbstractLanguageModel, prompter: Prompter, parser: Parser, **kwargs) -> None:
-        # previous_thoughts: List[Thought] = self.get_previous_thoughts()
+        previous_thoughts: List[Thought] = self.get_previous_thoughts()
 
-        assert (
-            len(self.predecessors) > 0
-        ), "Retrieve operation needs at least one predecessor"
+        if len(previous_thoughts) == 0:
+            # no predecessors, use kwargs as base state
+            previous_thoughts = [Thought(state=kwargs)]
 
-        for thought in self.get_previous_thoughts():
+        for thought in previous_thoughts:
             base_state = thought.state
             if self.get_keywords_function:
                 keywords = self.get_keywords_function(base_state)

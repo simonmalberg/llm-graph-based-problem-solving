@@ -51,6 +51,28 @@ def io() -> operations.GraphOfOperations:
 
     return operations_graph
 
+def io_base() -> operations.GraphOfOperations:
+    """
+    Generates the Graph of Operations for the IO base method (retrieval based on the original question).
+
+    :return: Graph of Operations
+    :rtype: GraphOfOperations
+    """
+    operations_graph = operations.GraphOfOperations()
+
+    operations_graph.append_operation(
+        operations.Retrieve(
+            bm25_retriever_save_dir=(datasets_dir() / "HotpotQA" / "wikipedia_index_bm25"),
+            get_keywords_function=lambda state: [state["original"]],
+            k=5))
+    operations_graph.append_operation(operations.Generate(1, 1))
+    # another generate process including the keywords and another prompt
+    # groundtruth evaluation
+    operations_graph.append_operation(operations.Score(scoring_function=calc_f1_score).named("Calculate F1 Score"))
+    operations_graph.append_operation(operations.GroundTruth(test_answer))
+
+    return operations_graph
+
 
 def probtree() -> operations.GraphOfOperations:
     """
@@ -277,7 +299,7 @@ def run(
 if __name__ == "__main__":
     budget = 30
     samples = [item for item in range(30)]
-    approaches = [probtree]
+    approaches = [io_base]
 
     logging.basicConfig(
         level=logging.INFO,
