@@ -4,7 +4,6 @@ from graph_of_thoughts import parser
 from . import utils
 
 
-
 class CommonsenseQAParser(parser.Parser):
     """
     CommonsenseQAParser provides the parsing of the language model responses specific to the CommonsenseQA example.
@@ -18,7 +17,7 @@ class CommonsenseQAParser(parser.Parser):
         """
         self.cache = {}
 
-    def parse_generate_answer(self, state: Dict, texts: List[str]) -> Dict:
+    def parse_generate_answer(self, state: Dict, texts: List[str]) -> List[Dict]:
         """
         Parse the response from the language model for a generate prompt.
 
@@ -30,14 +29,14 @@ class CommonsenseQAParser(parser.Parser):
         :rtype: List[Dict]
         """
         new_states = []
- 
+
         for text in texts:
-            
+
             if (state["method"].startswith("io")
                     or state["method"].startswith("cot")
                     or state["method"].startswith("plan_solve")
                     or state["method"].startswith("tot")):
-                answer_key = extract_answer(text)
+                answer_key = utils.extract_answer(text)
                 if answer_key is None:
                     logging.warning(
                         f"Could not parse step answer: {text}. Returning None."
@@ -49,7 +48,7 @@ class CommonsenseQAParser(parser.Parser):
             else:
                 raise ValueError(f"Unknown method: {state['method']}")
         return new_states
-    
+
     def parse_aggregation_answer(self, response: str, **kwargs) -> Union[Dict, List[Dict]]:
         pass
 
@@ -61,6 +60,6 @@ class CommonsenseQAParser(parser.Parser):
 
     def parse_score_answer(self, states: List[Dict], responses: List[str], **kwargs) -> List[float]:
         logging.info("parse_score_answer: responses: %s", responses)
-        scores: List[float] = [float(extract_score(scoring_range, response)) for response in responses]
+        scores: List[float] = [float(utils.extract_score(utils.scoring_range, response)) for response in responses]
         logging.info("parse_score_answer: scores: %s", scores)
         return scores

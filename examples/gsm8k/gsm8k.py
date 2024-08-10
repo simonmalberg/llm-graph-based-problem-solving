@@ -32,14 +32,18 @@ def io() -> operations.GraphOfOperations:
 
     return operations_graph
 
+
 def cot() -> operations.GraphOfOperations:
     return io()
+
 
 def plan_and_solve_basic() -> operations.GraphOfOperations:
     return io()
 
+
 def plan_and_solve_plus() -> operations.GraphOfOperations:
     return io()
+
 
 def cotsc() -> operations.GraphOfOperations:
     """
@@ -48,9 +52,11 @@ def cotsc() -> operations.GraphOfOperations:
     :return: Graph of Operations
     :rtype: GraphOfOperations
     """
+    num_branches = 5
+
     operations_graph = operations.GraphOfOperations()
 
-    operations_graph.append_operation(operations.Generate(1, 5))
+    operations_graph.append_operation(operations.Generate(1, num_branches))
     operations_graph.append_operation(operations.ScoreByFrequency(ignore_none=True))
     operations_graph.append_operation(operations.KeepBestN(1, True))
     operations_graph.append_operation(operations.Score(1, False))
@@ -96,19 +102,20 @@ def got() -> operations.GraphOfOperations:
     operations_graph.append_operation(operations.KeepBestN(1))
     # Phase 2: calculating the final results
     operations_graph.append_operation(operations.Generate(1, num_branches).named("Generate Final Answer"))
-    operations_graph.append_operation(operations.ScoreByFrequency(ignore_none=True).named("Score Final Answer By Frequency"))
+    operations_graph.append_operation(
+        operations.ScoreByFrequency(ignore_none=True).named("Score Final Answer By Frequency"))
     operations_graph.append_operation(operations.KeepBestN(1))
 
     operations_graph.append_operation(operations.GroundTruth(utils.test_answer))
     return operations_graph
+
 
 def run(
         data_ids: List[int],
         methods: List[Callable[[], operations.GraphOfOperations]],
         budget: float,
         lm_name: str,
-    ) -> float:
-
+) -> float:
     orig_budget = budget
     data_path = project.datasets_dir() / "grade-school-math" / "grade_school_math" / "data" / "test.jsonl"
     data = []
@@ -138,7 +145,7 @@ def run(
     }
     with open(os.path.join(results_folder, "config.json"), "w") as f:
         json.dump(config, f)
-    
+
     logging.basicConfig(
         filename=os.path.join(results_folder, "log.log"),
         filemode="w",
@@ -148,7 +155,7 @@ def run(
     for method in methods:
         # create a results directory for the method
         os.makedirs(os.path.join(results_folder, method.__name__))
-    
+
     for data in selected_data:
         logging.info(f"Running data {data['id']: }{data['question']}: {data['answer']}")
         if budget <= 0.0:
@@ -209,7 +216,7 @@ def run(
 
 if __name__ == "__main__":
     budget = 30
-    samples = [item for item in range(5)]
+    samples = []
     approaches = [io, cot, cotsc, plan_and_solve_basic, plan_and_solve_plus, tot]
 
     logging.basicConfig(level=logging.INFO)
@@ -217,4 +224,3 @@ if __name__ == "__main__":
     spent = run(samples, approaches, budget, "chatgpt")
 
     logging.info(f"Spent {spent} out of {budget} budget.")
-    
