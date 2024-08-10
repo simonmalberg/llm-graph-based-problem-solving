@@ -1,3 +1,4 @@
+from concurrent.futures import ProcessPoolExecutor
 import json
 import logging
 import os
@@ -453,11 +454,11 @@ def got() -> operations.GraphOfOperations:
 
 
 def run(
-        samples_per_task: int,
         methods: List[Callable[[], operations.GraphOfOperations]],
         budget: float,
         lm_name: str,
         tasks: List[str] = [],
+        samples_per_task: int = None,
 ) -> float:
     orig_budget = budget
     if not tasks:
@@ -492,7 +493,7 @@ def run(
             task_data = json.load(f)[
                 "examples"]  # we load the entire json at once as it seems the files are not too big.
             for id, example in enumerate(task_data):
-                if id >= samples_per_task:  # end evaluation when samples limit is reached
+                if samples_per_task and id >= samples_per_task:  # end evaluation when samples limit is reached
                     break
                 for method in methods:
                     method_results_dir = task_results_dir / method.__name__
@@ -537,9 +538,9 @@ def run(
     return orig_budget - budget
 
 
-if __name__ == "__main__":
+def main_one_run():
     budget = 30
-    samples = 3
+    samples = None
     approaches = [io, cot, cot_zeroshot, cot_sc, tot, plan_solve, plan_solve_plus, got]
     # approaches = [got]
     logging.basicConfig(
@@ -548,11 +549,34 @@ if __name__ == "__main__":
         datefmt='%Y-%m-%d:%H:%M:%S'
     )
 
-    tasks = [task.value for task in [
-        BBH_Tasks.BOOLEAN_EXPRESSIONS,
-        BBH_Tasks.DYCK_LANGUAGES,
-    ]]
+    # tasks = [task.value for task in [
+    #     BBH_Tasks.BOOLEAN_EXPRESSIONS,
+    #     BBH_Tasks.DYCK_LANGUAGES,
+    # ]]
+    tasks = []
 
-    spent = run(samples, approaches, budget, "llama3-8b-ollama", tasks)
+    spent = run(approaches, budget, "chatgpt", tasks, samples)
 
     logging.info(f"Spent {spent} out of {budget} budget.")
+
+
+def main_process_pool():
+    budget = 20
+    samples = None
+    approaches = [io, cot, cot_zeroshot, cot_sc, tot, plan_solve, plan_solve_plus, got]
+    tasks = [task.value for task in list(BBH_Tasks)]
+    
+    with ProcessPoolExecutor() as executor:
+        futures = {
+            executor.submit(run, approaches, budget, "chatgpt", [task], samples): task
+            for task in tasks
+            }
+        try:
+            spent = sum(future.result() for future in futures)
+            logging.info(f"Spent {spent} out of {budget} budget.")
+        except Exception as e:
+            logging.error(f"Exception: {e}")
+            logging.error("Trace: {}".format(traceback.format_exc()))
+
+if __name__ == "__main__":
+    main_process_pool()
