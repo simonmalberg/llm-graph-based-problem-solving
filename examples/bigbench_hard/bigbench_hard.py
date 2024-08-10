@@ -49,20 +49,20 @@ def extract_score(score_range: range, text: str):
     return 0.0
 
 
-def score_answers_by_frequency(thoughts: List[Thought]) -> List[Thought]:
-    ignore_empty_answers = False  # Setting to true helps with Llama3 as it often doesn't give answer in parseable form.
-    scores = {}
-    for thought in thoughts:
-        current_state = thought.state["current"]
-        scores[current_state] = scores.get(current_state, 0) + 1
-    logging.info("return_most_frequent_answer: scores: {}".format(scores))
-    frequent_answer = max(scores, key=scores.get)
-    for thought in thoughts:
-        thought.score = scores[thought.state["current"]]
-        if ignore_empty_answers:
-            if thought.state is None:
-                thought.score = 0
-    return thoughts
+# def score_answers_by_frequency(thoughts: List[Thought]) -> List[Thought]:
+#     ignore_empty_answers = False  # Setting to true helps with Llama3 as it often doesn't give answer in parseable form.
+#     scores = {}
+#     for thought in thoughts:
+#         current_state = thought.state["current"]
+#         scores[current_state] = scores.get(current_state, 0) + 1
+#     logging.info("return_most_frequent_answer: scores: {}".format(scores))
+#     frequent_answer = max(scores, key=scores.get)
+#     for thought in thoughts:
+#         thought.score = scores[thought.state["current"]]
+#         if ignore_empty_answers:
+#             if thought.state is None:
+#                 thought.score = 0
+#     return thoughts
 
 
 def test_answer(state: Dict) -> bool:
@@ -369,10 +369,8 @@ def cot_sc() -> operations.GraphOfOperations:
     generate_operation = operations.Generate(1, num_branches)
     operations_graph.append_operation(generate_operation)
     operations_graph.append_operation(
-        # operations.Selector(selector=score_answers_by_frequency)  # have to do this less than ideal implementation
         operations.ScoreByFrequency(ignore_none=True)
     )
-    # due to issues with existing scoring function, might be better to refactor
     operations_graph.append_operation(operations.KeepBestN(1))
     operations_graph.append_operation(operations.GroundTruth(test_answer))
 
@@ -416,7 +414,7 @@ def tot() -> operations.GraphOfOperations:
      :return: Graph of Operations
      :rtype: GraphOfOperations
      """
-    num_branches = 3
+    num_branches = 5
     keep_best = 2
 
     operations_graph = operations.GraphOfOperations()
@@ -438,7 +436,7 @@ def got() -> operations.GraphOfOperations:
      :return: Graph of Operations
      :rtype: GraphOfOperations
      """
-    num_branches = 3
+    num_branches = 5
     keep_best = 2
 
     operations_graph = operations.GraphOfOperations()
@@ -540,7 +538,7 @@ def run(
 
 def main_one_run():
     budget = 30
-    samples = None
+    samples = None # runs all samples
     approaches = [io, cot, cot_zeroshot, cot_sc, tot, plan_solve, plan_solve_plus, got]
     # approaches = [got]
     logging.basicConfig(

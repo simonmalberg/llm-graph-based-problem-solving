@@ -1,29 +1,15 @@
-import os
-import re
-import logging
 import datetime
 import json
-from pathlib import Path
-from typing import Dict, List, Callable, Union
-from graph_of_thoughts import controller, language_models, operations, prompter, parser
-import project_utils as project
-from graph_of_thoughts.operations import Thought
-
-import os
 import logging
-import datetime
-import json
+import os
 from pathlib import Path
 from typing import List, Callable
+
+import project_utils as project
 from graph_of_thoughts import controller, language_models, operations
-
-
-from .src.prompter import CommonsenseQAPrompter
-from .src.parser import CommonsenseQAParser
 from .src import utils
-
-
-
+from .src.parser import CommonsenseQAParser
+from .src.prompter import CommonsenseQAPrompter
 
 
 def io() -> operations.GraphOfOperations:
@@ -108,19 +94,17 @@ def plan_solve_plus() -> operations.GraphOfOperations:
     return operations_graph
 
 
-def tot_style() -> operations.GraphOfOperations:
-    operations_graph = operations.GraphOfOperations()
+# def tot_style() -> operations.GraphOfOperations:
+#     operations_graph = operations.GraphOfOperations()
+#
+#     operations_graph.append_operation(operations.Generate(1, 5))
+#     operations_graph.append_operation(operations.ScoreByFrequency(ignore_none=True))
+#     operations_graph.append_operation(operations.KeepBestN(1))
+#     operations_graph.append_operation(operations.GroundTruth(utils.test_answer))
+#
+#     return operations_graph
 
-    operations_graph.append_operation(operations.Generate(1, 5))
-    operations_graph.append_operation(operations.ScoreByFrequency(ignore_none=True))
-    operations_graph.append_operation(operations.KeepBestN(1))
-    operations_graph.append_operation(operations.GroundTruth(utils.test_answer))
 
-    return operations_graph
-
-
-
-    
 def tot_base() -> operations.GraphOfOperations:
     """
     Generates the Graph of Operations for the ToT method.
@@ -131,14 +115,14 @@ def tot_base() -> operations.GraphOfOperations:
     """
     operations_graph = operations.GraphOfOperations()
     operations_graph.append_operation(operations.Generate(1, 5))
-    operations_graph.append_operation(operations.Score(1,False))
+    operations_graph.append_operation(operations.Score(1, False))
     operations_graph.append_operation(operations.ScoreByFrequency(ignore_none=True))
     keep_best_1 = operations.KeepBestN(1)
     operations_graph.append_operation(keep_best_1)
 
     for _ in range(3):
         operations_graph.append_operation(operations.Generate(1, 5))
-        operations_graph.append_operation(operations.Score(1,False))
+        operations_graph.append_operation(operations.Score(1, False))
         operations_graph.append_operation(operations.ScoreByFrequency(ignore_none=True))
         keep_best_2 = operations.KeepBestN(1)
         keep_best_2.add_predecessor(keep_best_1)
@@ -150,15 +134,15 @@ def tot_base() -> operations.GraphOfOperations:
 
     return operations_graph
 
+
 def run(
         data_ids: List[int],
         methods: List[Callable[[], operations.GraphOfOperations]],
         budget: float,
         lm_name: str,
-    ) -> float:
-
+) -> float:
     orig_budget = budget
-    
+
     datasets_dir: Path = project.datasets_dir() / "CommonSenseQA"
     data_path = datasets_dir / "train_rand_split.jsonl"
 
@@ -179,8 +163,6 @@ def run(
         data_ids = list(range(len(data)))
     selected_data = [data[i] for i in data_ids]
 
-
-
     results_dir = os.path.join(os.path.dirname(__file__), "results")
     if not os.path.exists(results_dir):
         os.makedirs(results_dir)
@@ -197,7 +179,7 @@ def run(
     }
     with open(os.path.join(results_folder, "config.json"), "w") as f:
         json.dump(config, f)
-    
+
     logging.basicConfig(
         filename=os.path.join(results_folder, "log.log"),
         filemode="w",
@@ -207,9 +189,9 @@ def run(
     for method in methods:
         # create a results directory for the method
         os.makedirs(os.path.join(results_folder, method.__name__))
-    
+
     for data in selected_data:
-       
+
         logging.info(f"Running data {data['id']: }{data['question']}: {data['answerKey']}")
         if budget <= 0.0:
             logging.error(
@@ -225,8 +207,8 @@ def run(
                 )
                 break
             raw_path = os.path.join(
-                    os.path.dirname(__file__),
-                    "../../graph_of_thoughts/language_models/config.json")
+                os.path.dirname(__file__),
+                "../../graph_of_thoughts/language_models/config.json")
             abs_path = os.path.abspath(raw_path)
             lm = language_models.ChatGPT(
                 abs_path,
@@ -265,8 +247,8 @@ def run(
 
 if __name__ == "__main__":
     budget = 30
-    samples = [item for item in range(20)]
-    approaches = [io, cot, cot_zeroshot, cot_sc, plan_solve, plan_solve_plus, tot_base, tot_style]
+    samples = [] # runs all the data
+    approaches = [io, cot, cot_zeroshot, cot_sc, plan_solve, plan_solve_plus, tot_base]
     spent = run(samples, approaches, budget, "chatgpt")
 
     logging.info(f"Spent {spent} out of {budget} budget.")

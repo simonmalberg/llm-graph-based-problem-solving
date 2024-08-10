@@ -1,13 +1,8 @@
-import os
-import re
 import logging
-import datetime
-import json
-from pathlib import Path
-from typing import Dict, List, Callable, Union
-from graph_of_thoughts import controller, language_models, operations, prompter, parser
-from graph_of_thoughts.operations import Thought
+from typing import Dict, List
 
+from graph_of_thoughts import prompter
+from graph_of_thoughts.operations import Thought
 
 
 class CommonsenseQAPrompter(prompter.Prompter):
@@ -35,7 +30,6 @@ class CommonsenseQAPrompter(prompter.Prompter):
     Input: {input}
     Output:"""
 
-    
     cot_prompt = """<Instruction> Use your commonsense knowledge to answer the following question. Let us think Step by Step, then provide the answer in this format: <Answer>answer</Answer>
     </Instruction>
     
@@ -85,7 +79,6 @@ class CommonsenseQAPrompter(prompter.Prompter):
     Input: {input}
     Output: """
 
-
     cot_zeroshot_prompt = """<Instruction> Use your commonsense knowledge to answer the following question. Let us think Step by Step, then provide the answer in this format: 
     <Answer>answer</Answer>
     e.g. <Answer>E</Answer>
@@ -112,8 +105,6 @@ class CommonsenseQAPrompter(prompter.Prompter):
     </Instruction>  
     Input: {input}
     Output:"""
-
-    
 
     tot_base_prompt = """<Instruction>
     The following two inputs represent an initial input question and preliminary explanation of the problem 
@@ -180,7 +171,7 @@ class CommonsenseQAPrompter(prompter.Prompter):
     {current_answer}
     output:
     """
-    
+
     tot_style_prompt = """<Instruction>
     Imagine three different experts are answering this question.All experts will write down 1 step of their thinking,then share it with the group.Then all experts will go on to the next step, etc.
     If any expert realizes they're wrong at any point then they leave. Output the answer in this format:<Answer>answer</Answer> Anaylyzing:....
@@ -208,7 +199,6 @@ class CommonsenseQAPrompter(prompter.Prompter):
 
     Input: {input}
     Output: """
-
 
     score_prompt_base = """
     Given the question, score the given current answers from 1 to 5 based on common sense. Give the score in the format <Score>score</Score>. 
@@ -286,27 +276,26 @@ class CommonsenseQAPrompter(prompter.Prompter):
         logging.info(f"Generating prompt with method: {method}, current: {current}")
         if method.startswith("io"):
             return self.io_prompt.format(input=input)
-        elif method =="cot" or method == "cot_sc":
+        elif method == "cot" or method == "cot_sc":
             return self.cot_prompt.format(input=input)
         elif method == "cot_zeroshot":
             return self.cot_zeroshot_prompt.format(input=input)
         elif method == "plan_solve":
-            return  self.plan_solve_basic_prompt.format(input=input)
+            return self.plan_solve_basic_prompt.format(input=input)
         elif method == "plan_solve_plus":
             return self.plan_solve_plus_prompt.format(input=input)
         elif method == "tot_style":
             return self.tot_style_prompt.format(input=input)
-        elif method =="tot_base":
+        elif method == "tot_base":
             if current is None or current == "":
                 return self.cot_prompt.format(input=input)
             return self.tot_base_prompt.format(
                 input=original,
                 current_answer=current
             )
-        
+
         else:
             raise ValueError(f"Unknown method: {method}")
-        
 
     def aggregation_prompt(self, state_dicts: List[Dict], **kwargs) -> str:
         pass
@@ -322,4 +311,3 @@ class CommonsenseQAPrompter(prompter.Prompter):
         inputs = [state_dict["original"] for state_dict in state_dicts]
         final_prompt = self.score_prompt_base.format(input=inputs[0], current_answer=thoughts[0])
         return final_prompt
-    
