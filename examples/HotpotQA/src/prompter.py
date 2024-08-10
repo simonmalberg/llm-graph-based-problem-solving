@@ -27,6 +27,7 @@ Output:
 <Question>{question}</Question>
 Output:
 """
+
     tree_generation_examples = """\
 Q: Jeremy Theobald and Christopher Nolan share what profession?
 A: {"Jeremy Theobald and Christopher Nolan share what profession?": ["What is Jeremy Theobald's profession?", "What is Christopher Nolan's profession?"]}.
@@ -199,7 +200,11 @@ Output:
     def generate_prompt(self, num_branches: int, original: str, current: str, method: str, **kwargs) -> str:
         assert num_branches == 1, "Branching should be done via multiple requests."
         examples = utils.parse_examples()
-        if method.startswith("io"):
+        if method == "io_base":
+            examples_str = "\n".join([f"{example["question"]}<Answer>{example["io_answer"]}</Answer>" for example in examples])
+            prompt = self.io_prompt_answer_question.format(context=current, question=original, examples=examples_str)
+            pass
+        elif method.startswith("io"):
             if kwargs["phase"] == 0:
                 prompt = self.io_prompt_get_keywords.format(input=original)
             elif kwargs["phase"] == 2:
