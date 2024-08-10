@@ -1,4 +1,4 @@
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, as_completed
 import json
 import logging
 import os
@@ -6,6 +6,8 @@ import re
 import traceback
 from pathlib import Path
 from typing import Dict, List, Callable, Union, Any
+
+from tqdm import tqdm
 
 import project_utils as project
 try:
@@ -457,6 +459,7 @@ def run(
         lm_name: str,
         tasks: List[str] = [],
         samples_per_task: int = None,
+        use_dir: str = None
 ) -> float:
     orig_budget = budget
     if not tasks:
@@ -474,23 +477,26 @@ def run(
     }
 
     # create directory for results
-    results_dir = project.create_results_dir(
-        directory=os.path.dirname(__file__),
-        lm_name=lm_name,
-        methods=methods,
-        config=config,
-        tasks=tasks
-    )
+    if not use_dir:
+        results_dir = project.create_results_dir(
+            directory=os.path.dirname(__file__),
+            lm_name=lm_name,
+            methods=methods,
+            config=config,
+            tasks=tasks
+        )
+    else:
+        results_dir = use_dir
 
     datasets_dir: Path = project.datasets_dir() / "BIG-Bench-Hard" / "bbh"
-    for task in tasks:
+    for task in tqdm(tasks, desc="Tasks"):
         logging.info(f"Evaluating task: {task}")
         task_data_path: Path = datasets_dir / f"{task}.json"
         task_results_dir = results_dir / task
         with open(task_data_path, "r") as f:
             task_data = json.load(f)[
                 "examples"]  # we load the entire json at once as it seems the files are not too big.
-            for id, example in enumerate(task_data):
+            for id, example in tqdm(enumerate(task_data), desc="Examples", total=len(task_data)):
                 if samples_per_task and id >= samples_per_task:  # end evaluation when samples limit is reached
                     break
                 for method in methods:
@@ -542,7 +548,7 @@ def main_one_run():
     approaches = [io, cot, cot_zeroshot, cot_sc, tot, plan_solve, plan_solve_plus, got]
     # approaches = [got]
     logging.basicConfig(
-        level=logging.INFO,
+        level=logging.ERROR,
         format='%(asctime)s,%(msecs)03d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s',
         datefmt='%Y-%m-%d:%H:%M:%S'
     )
@@ -553,28 +559,51 @@ def main_one_run():
     # ]]
     tasks = []
 
-    spent = run(approaches, budget, "chatgpt", tasks, samples)
+    spent = run(approaches, budget, "llama3-8b-ollama", tasks, samples)
 
     logging.info(f"Spent {spent} out of {budget} budget.")
 
 
+def run_process(approaches, budget, model, tasks, samples, results_dir):
+    logging.basicConfig(
+        level=logging.ERROR,
+        format='%(asctime)s,%(msecs)03d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s',
+        datefmt='%Y-%m-%d:%H:%M:%S'
+    )
+    return run(approaches, budget, model, tasks, samples, results_dir)
+
 def main_process_pool():
     budget = 20
     samples = None
-    approaches = [io, cot, cot_zeroshot, cot_sc, tot, plan_solve, plan_solve_plus, got]
+    lm = "chatgpt"
     tasks = [task.value for task in list(BBH_Tasks)]
+    approaches = [io, cot, cot_zeroshot, cot_sc, tot, plan_solve, plan_solve_plus, got]
+    config = {
+        "tasks": tasks,
+        "methods": [method.__name__ for method in approaches],
+        "lm": lm,
+        "budget": budget,
+    }
+    results_dir = project.create_results_dir(
+            directory=os.path.dirname(__file__),
+            lm_name=lm,
+            methods=approaches,
+            config=config,
+            tasks=tasks
+        )
     
-    with ProcessPoolExecutor() as executor:
+    with ProcessPoolExecutor(max_workers=30) as executor:
         futures = {
-            executor.submit(run, approaches, budget, "chatgpt", [task], samples): task
+            executor.submit(run_process, approaches, budget, "chatgpt", [task], samples, results_dir): task
             for task in tasks
             }
-        try:
-            spent = sum(future.result() for future in futures)
-            logging.info(f"Spent {spent} out of {budget} budget.")
-        except Exception as e:
-            logging.error(f"Exception: {e}")
-            logging.error("Trace: {}".format(traceback.format_exc()))
+        for future in as_completed(futures):
+            task = futures[future]
+            try:
+                spent = future.result()
+                logging.info(f"Task {task} spent {spent} out of {budget} budget.")
+            except Exception as e:
+                logging.error(f"Task {task} generated an exception: {e}")
 
 if __name__ == "__main__":
-    main_process_pool()
+    main_one_run()
