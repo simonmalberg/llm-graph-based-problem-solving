@@ -508,14 +508,26 @@ def run(
                             f"Budget has been depleted, stopping. Method {method.__name__} has not been run."
                         )
                         break
-                    lm = language_models.ChatGPT(
-                        os.path.join(
-                            os.path.dirname(__file__),
-                            "../../graph_of_thoughts/language_models/config.json",
-                        ),
-                        model_name=lm_name,
-                        cache=True,
-                    )
+                    if lm_name.startswith("chatgpt"):
+                        lm = language_models.ChatGPT(
+                            os.path.join(
+                                os.path.dirname(__file__),
+                                "../../graph_of_thoughts/language_models/config.json",
+                            ),
+                            model_name=lm_name,
+                            cache=True,
+                        )
+                    elif lm_name.startswith("replicate"):
+                        lm = language_models.ReplicateLanguageModel(
+                            os.path.join(
+                                os.path.dirname(__file__),
+                                "../../graph_of_thoughts/language_models/config.json",
+                            ),
+                            model_name=lm_name,
+                            cache=True,
+                        )
+                    else:
+                        raise ValueError(f"Unknown LM: {lm_name}")
                     operations_graph = method()
                     executor = controller.Controller(
                         lm,
@@ -559,7 +571,7 @@ def main_one_run():
     # ]]
     tasks = []
 
-    spent = run(approaches, budget, "llama3-8b-ollama", tasks, samples)
+    spent = run(approaches, budget, "replicate-llama3-8b-ollama", tasks, samples)
 
     logging.info(f"Spent {spent} out of {budget} budget.")
 
