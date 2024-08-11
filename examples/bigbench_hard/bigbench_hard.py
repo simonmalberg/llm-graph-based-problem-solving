@@ -80,6 +80,11 @@ class BigBenchHardPrompter(prompter.Prompter):
     """
 
     sys_prompt = """Provide the answer in the exact format as given"""
+
+    io_zeroshot_prompt = """<Instruction> {instruction} </Instruction>
+    
+<Input> {input} </Input>"""
+
     io_prompt = """<Instruction> {instruction} </Instruction>
     
 <Examples>
@@ -183,10 +188,14 @@ class BigBenchHardPrompter(prompter.Prompter):
 
                 full_examples.append(self.answer_prompt.format(answer=answers[i]))
 
-            if method.startswith("io"):
+            if method == "io":
                 full_prompt = self.io_prompt.format(instruction=f"{self.sys_prompt}\n{prompt}",
                                                     examples="\n".join(full_examples),
                                                     input=input_str)
+            elif method == "io_zs":
+                full_prompt = self.io_zeroshot_prompt.format(instruction=f"{self.sys_prompt}\n{prompt}",
+                                                    input=input_str)
+
             elif method == "cot" or method == "cot_sc":
                 full_prompt = self.io_prompt.format(instruction=f"{self.sys_prompt}\n{prompt}",
                                                     examples="\n".join(full_examples),
@@ -326,6 +335,9 @@ def io() -> operations.GraphOfOperations:
     operations_graph.append_operation(operations.GroundTruth(test_answer))
 
     return operations_graph
+
+def io_zs() -> operations.GraphOfOperations:
+    return io()
 
 
 def cot() -> operations.GraphOfOperations:
@@ -557,8 +569,8 @@ def run(
 def main_one_run():
     budget = 30
     samples = None # runs all samples
-    approaches = [io, cot, cot_zeroshot, cot_sc, tot, plan_solve, plan_solve_plus, got]
-    # approaches = [got]
+    # approaches = [io, cot, cot_zeroshot, cot_sc, tot, plan_solve, plan_solve_plus, got]
+    approaches = [io_zs]
     logging.basicConfig(
         level=logging.ERROR,
         format='%(asctime)s,%(msecs)03d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s',
@@ -571,7 +583,7 @@ def main_one_run():
     # ]]
     tasks = []
 
-    spent = run(approaches, budget, "replicate-llama3-8b-ollama", tasks, samples)
+    spent = run(approaches, budget, "chatgpt", tasks, samples)
 
     logging.info(f"Spent {spent} out of {budget} budget.")
 
@@ -587,9 +599,11 @@ def run_process(approaches, budget, model, tasks, samples, results_dir):
 def main_process_pool():
     budget = 20
     samples = None
-    lm = "chatgpt"
+    lm = "replicate-llama3-8b-ollama"
+    # lm = "chatgpt"
     tasks = [task.value for task in list(BBH_Tasks)]
-    approaches = [io, cot, cot_zeroshot, cot_sc, tot, plan_solve, plan_solve_plus, got]
+    approaches = [io, io_zs, cot, cot_zeroshot, cot_sc, tot, plan_solve, plan_solve_plus, got]
+    # approaches = [io_zs]
     config = {
         "tasks": tasks,
         "methods": [method.__name__ for method in approaches],
@@ -606,8 +620,9 @@ def main_process_pool():
     
     with ProcessPoolExecutor(max_workers=30) as executor:
         futures = {
-            executor.submit(run_process, approaches, budget, "chatgpt", [task], samples, results_dir): task
+            executor.submit(run_process, [approach], budget, lm, [task], samples, results_dir): (task, approach)
             for task in tasks
+            for approach in approaches
             }
         for future in as_completed(futures):
             task = futures[future]
@@ -618,4 +633,5 @@ def main_process_pool():
                 logging.error(f"Task {task} generated an exception: {e}")
 
 if __name__ == "__main__":
-    main_one_run()
+    main_process_pool()
+    # main_one_run()

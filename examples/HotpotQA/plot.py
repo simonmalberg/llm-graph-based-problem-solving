@@ -20,25 +20,31 @@ class DocMergePlotter(BaseResultPlotter):
                     break
                 except:
                     continue
+            if "operation" in op and op["operation"] == "ground_truth_evaluator":
+                try:
+                    solved = any(op["problem_solved"])
+                    score = 0 if not solved else 1
+                except:
+                    continue
         return score, solved, cost, prompt_tokens, completion_tokens
 
 
 if __name__ == "__main__":
     plotter = DocMergePlotter(
-        result_directory=Path(__file__).parent / "results" / "chatgpt_probtree_2024-08-10_13-44-46",
+        result_directory=Path(__file__).parent / "results" / "chatgpt_io_closedbook-io_base-io-io_zs-plan_solve_basic-plan_solve_plus-cot_zeroshot-cot-cot_sc_1-cot_sc_2-tot-probtree_2024-08-11_13-47-39",
         config=Config(
-            methods_order=["probtree"],
-            methods_labels=["ProbTree"],
+            methods_order=["io_closedbook", "io_base", "io_zs", "io", "plan_solve_basic", "plan_solve_plus", "cot_zeroshot", "cot", "cot_sc_1", "cot_sc_2", "tot", "probtree"],
+            methods_labels=["IO-CB", "IO-Base", "IO-zs", "IO", "PS", "PS+", "CoT-zs", "CoT", "CoT-SC1", "CoT-SC2", "ToT", "ProbTree"],
             y_lower=0,
-            y_upper=1,
-            cost_upper=1.2,
+            y_upper=1.2,
+            cost_upper=0.7,
             display_solved=True,
             annotation_offset=-0.1,
             display_left_ylabel=True,
             display_right_ylabel=True,
             left_ylabel="F1 Score",
             right_ylabel="Total Cost ($); the lower the better",
-            figsize=(3.75, 5),
+            figsize=(11.25, 5),
             fig_fontsize=12,
         )
         )

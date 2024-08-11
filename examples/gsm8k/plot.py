@@ -27,13 +27,13 @@ class GSM8KPlotter(BaseResultPlotter):
 if __name__ == "__main__":
     doc_plotter = GSM8KPlotter(
         # result_directory=Path(__file__).parent / "results" / "llama3-8b-ollama_io-cot_2024-06-12_14-50-52",
-        result_directory=Path(__file__).parent / "results" / "chatgpt_io-cot-cot_zeroshot-cotsc-plan_and_solve_basic-plan_and_solve_plus-tot_2024-07-13_18-20-04",
+        result_directory=Path(__file__).parent / "results" / "chatgpt_io-io_zeroshot-cot-cotsc-plan_and_solve_basic-plan_and_solve_plus-tot-got_2024-08-10_19-09-55",
         config=Config(
-            methods_order=["plan_and_solve_basic", "plan_and_solve_plus", "io", "cot", "cot_zeroshot", "cotsc", "tot"],
-            methods_labels=["PS", "PS+", "IO", "CoT", "CoT-zs", "CoT-SC", "ToT"],
+            methods_order=["io_zeroshot", "plan_and_solve_basic", "plan_and_solve_plus", "io", "cot", "cotsc", "tot", "got"],
+            methods_labels=["IO-zs", "PS", "PS+", "IO", "CoT", "CoT-SC", "ToT", "GoT"],
             y_lower=0,
             y_upper=1,
-            cost_upper=.12,
+            cost_upper=8.4,
             # cost_in_percent=True,
             display_solved=True,
             annotation_offset=-0.06,

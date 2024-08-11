@@ -98,10 +98,13 @@ def f1_score(prediction, ground_truth) -> (float, float, float):
     @param prediction:
     @return:
     """
-    normalized_prediction = normalize_answer(prediction)
-    normalized_ground_truth = normalize_answer(ground_truth)
 
     zero_metric = (0, 0, 0)
+    
+    if prediction is None:
+        return zero_metric
+    normalized_prediction = normalize_answer(prediction)
+    normalized_ground_truth = normalize_answer(ground_truth)
 
     if normalized_prediction in ['yes', 'no', 'noanswer'] and normalized_prediction != normalized_ground_truth:
         return zero_metric
@@ -127,6 +130,8 @@ def exact_match_score(prediction, ground_truth) -> bool:
     @param prediction:
     @return:
     """
+    if prediction is None:
+        return False
     return normalize_answer(prediction) == normalize_answer(ground_truth)
 
 

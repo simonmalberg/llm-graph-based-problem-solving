@@ -75,7 +75,7 @@ class ReplicateLanguageModel(AbstractLanguageModel):
             self.respone_cache[query] = response
         return response[0] if num_responses == 1 else response
 
-    @backoff.on_exception(backoff.expo, ReplicateError, max_time=10, max_tries=6)
+    @backoff.on_exception(backoff.expo, ReplicateError, max_time=600, max_tries=60)
     def chat(self, prompt: str) -> str:
         """
         Send chat messages to the Replicate model and retrieve the model's response.
