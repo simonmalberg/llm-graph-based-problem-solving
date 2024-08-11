@@ -97,10 +97,13 @@ class ReplicateLanguageModel(AbstractLanguageModel):
             "stop": self.stop,
         }
 
-        prediction = self.client.predictions.create(model=self.model_id, input=input_data)
-        prediction.wait()
-        if prediction.status == "failed":
-            raise ReplicateError(f"Error in Replicate API. Prediction: {prediction}")
+        try:
+            prediction = self.client.predictions.create(model=self.model_id, input=input_data)
+            prediction.wait()
+            if prediction.status == "failed":
+                raise ReplicateError(f"Error in Replicate API. Prediction: {prediction}")
+        except Exception as e:
+            raise ReplicateError(f"Error in Replicate API: {e}")
         self.prompt_tokens += prediction.metrics["input_token_count"]
         self.completion_tokens += prediction.metrics["output_token_count"]
         prompt_tokens_k = float(self.prompt_tokens) / 1000.0
