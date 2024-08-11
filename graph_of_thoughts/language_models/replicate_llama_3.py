@@ -43,8 +43,8 @@ class ReplicateLanguageModel(AbstractLanguageModel):
         self.response_token_cost: float = self.config["response_token_cost"]
         self.temperature: float = self.config["temperature"]
         self.max_tokens: int = self.config["max_tokens"]
-        self.top_k: int = self.config.get(["top_k"], None)
-        self.top_p: float = self.config.get(["top_p"], None)
+        self.top_k: int = self.config.get("top_k", None)
+        self.top_p: float = self.config.get("top_p", None)
         self.stop: Union[str, List[str]] = self.config["stop"]
         self.prompt_template: str = self.config.get("prompt_template", "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\nYou are a helpful assistant<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n{prompt}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n")
         self.api_key: str = os.getenv("REPLICATE_API_TOKEN", self.config["api_key"])
