@@ -69,6 +69,8 @@ def extract_score(score_range: range, text: str):
 
 def test_answer(state: Dict) -> bool:
     logging.debug(f"\nground truth: {state['ground_truth']}\n current_answer: {state['current']}")
+    if state["current"] is None:
+        return False
     ground_truth = state["ground_truth"].strip().lower()
     current_answer = state["current"].strip().lower()
     return ground_truth == current_answer
@@ -583,7 +585,7 @@ def main_one_run():
     # ]]
     tasks = []
 
-    spent = run(approaches, budget, "chatgpt", tasks, samples)
+    spent = run(approaches, budget, "replicate-llama3-8b-ollama", tasks, samples)
 
     logging.info(f"Spent {spent} out of {budget} budget.")
 
@@ -633,5 +635,5 @@ def main_process_pool():
                 logging.error(f"Task {task} generated an exception: {e}")
 
 if __name__ == "__main__":
-    main_process_pool()
-    # main_one_run()
+    # main_process_pool()
+    main_one_run()

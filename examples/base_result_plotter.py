@@ -108,6 +108,13 @@ class BaseResultPlotter(ABC):
     def process_result(self, result):
         pass
 
+    def calculate_confidence_interval_for_binary_data(self, total, solved):
+        if total == 0:
+            return 0
+        p = solved / total
+        Z_value = 1.96
+        return Z_value * ((p * (1 - p) / total) ** 0.5)
+
     def get_plotting_data(self):
         results_complete = self.get_complete_results(aggregate_subtasks=self.config.aggregate_subtasks)
         scores = self.get_final_scores(results_complete)
@@ -134,9 +141,22 @@ class BaseResultPlotter(ABC):
         positions = range(1, len(methods_order) + 1)
         fig_fontsize = self.config.fig_fontsize
         if self.config.plot_only_accuracy:
+            confidence_intervals = [    
+                self.calculate_confidence_interval_for_binary_data(len(scores), sum(scores))
+                for scores in scores_ordered
+            ]
             ax2_width = 0.25
             ax2_offset = 0.25
             ax.bar(positions, [sum(scores) / len(scores) for scores in scores_ordered], color="black", alpha=0.5, width=0.25)
+            for i, (method, scores) in enumerate(zip(methods_order, scores_ordered)):
+                ax.errorbar(
+                    positions[i],
+                    sum(scores) / len(scores),
+                    yerr=confidence_intervals[i],
+                    fmt="",
+                    color="black",
+                    capsize=5,
+                )
             ax.set_ylim(self.config.y_lower, self.config.y_upper)
         else:
             ax.boxplot(scores_ordered, positions=positions, meanline=True, showmeans=True)
