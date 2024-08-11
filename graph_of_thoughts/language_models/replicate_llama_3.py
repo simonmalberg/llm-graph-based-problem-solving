@@ -39,6 +39,8 @@ class ReplicateLanguageModel(AbstractLanguageModel):
         super().__init__(config_path, model_name, cache)
         self.config: Dict = self.config[model_name]
         self.model_id: str = self.config["model_id"]
+        self.prompt_token_cost: float = self.config["prompt_token_cost"]
+        self.response_token_cost: float = self.config["response_token_cost"]
         self.temperature: float = self.config["temperature"]
         self.max_tokens: int = self.config["max_tokens"]
         self.top_k: int = self.config["top_k"]
@@ -75,7 +77,7 @@ class ReplicateLanguageModel(AbstractLanguageModel):
             self.respone_cache[query] = response
         return response[0] if num_responses == 1 else response
 
-    @backoff.on_exception(backoff.expo, ReplicateError, max_time=10, max_tries=6)
+    @backoff.on_exception(backoff.expo, ReplicateError, max_time=600, max_tries=60)
     def chat(self, prompt: str) -> str:
         """
         Send chat messages to the Replicate model and retrieve the model's response.
@@ -95,13 +97,19 @@ class ReplicateLanguageModel(AbstractLanguageModel):
             "stop": self.stop,
         }
 
-        try:
-            response = self.client.run(self.model_id, input=input_data)
-        except Exception as e:
-            raise ReplicateError(f"Error in Replicate API: {e}")
-
-        self.logger.info(f"Received response: {response}")
-        return "".join(response)
+        prediction = self.client.predictions.create(model=self.model_id, input=input_data)
+        prediction.wait()
+        if prediction.status == "failed":
+            raise ReplicateError(f"Error in Replicate API. Prediction: {prediction}")
+        self.prompt_tokens += prediction.metrics["input_token_count"]
+        self.completion_tokens += prediction.metrics["output_token_count"]
+        prompt_tokens_k = float(self.prompt_tokens) / 1000.0
+        completion_tokens_k = float(self.completion_tokens) / 1000.0
+        self.cost = (
+            self.prompt_token_cost * prompt_tokens_k
+            + self.response_token_cost * completion_tokens_k
+        )
+        return "".join(prediction.output)
 
     def get_response_texts(
         self, query_response: Union[List[str], str]

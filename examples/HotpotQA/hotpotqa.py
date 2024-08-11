@@ -1,9 +1,12 @@
+from concurrent.futures import ProcessPoolExecutor, as_completed
 import datetime
 import json
 import logging
 import os
 from functools import partial
 from typing import List, Callable, Dict
+
+from tqdm import tqdm
 
 from graph_of_thoughts import controller, language_models, operations
 from graph_of_thoughts.operations.probtree_operation import ProbtreeReasoning
@@ -51,6 +54,9 @@ def io() -> operations.GraphOfOperations:
 
     return operations_graph
 
+def io_zs() -> operations.GraphOfOperations:
+    return io()
+
 def io_base() -> operations.GraphOfOperations:
     """
     Generates the Graph of Operations for the IO base method (retrieval based on the original question).
@@ -73,6 +79,22 @@ def io_base() -> operations.GraphOfOperations:
 
     return operations_graph
 
+def io_closedbook() -> operations.GraphOfOperations:
+    """
+    Generates the Graph of Operations for the IO closed-book method (retrieval based on the original question).
+
+    :return: Graph of Operations
+    :rtype: GraphOfOperations
+    """
+    operations_graph = operations.GraphOfOperations()
+
+    operations_graph.append_operation(operations.Generate(1, 1))
+    # another generate process including the keywords and another prompt
+    # groundtruth evaluation
+    operations_graph.append_operation(operations.Score(scoring_function=calc_f1_score).named("Calculate F1 Score"))
+    operations_graph.append_operation(operations.GroundTruth(test_answer))
+
+    return operations_graph
 
 def probtree() -> operations.GraphOfOperations:
     """
@@ -164,7 +186,7 @@ def cot_sc_2() -> operations.GraphOfOperations:
     operations_graph.append_operation(operations.KeepBestN(1))
     operations_graph.append_operation(operations.Score(scoring_function=calc_f1_score).named("Calculate F1 Score"))
     operations_graph.append_operation(operations.GroundTruth(test_answer))
-    return
+    return operations_graph
 
 
 def plan_solve_basic() -> operations.GraphOfOperations:
@@ -180,7 +202,7 @@ def cot_zeroshot() -> operations.GraphOfOperations:
 
 
 def tot() -> operations.GraphOfOperations:
-    num_branches = 1
+    num_branches = 5
     retrieval_count = 5
 
     operations_graph = operations.GraphOfOperations()
@@ -203,6 +225,7 @@ def run(
         methods: List[Callable[[], operations.GraphOfOperations]],
         budget: float,
         lm_name: str,
+        folder_name: str = None,
 ) -> float:
     orig_budget = budget
     data_path = datasets_dir() / "HotpotQA" / "hotpot_dev_fullwiki_v1.json"
@@ -215,13 +238,13 @@ def run(
     selected_data = [data[i] for i in data_ids]
 
     results_dir = os.path.join(os.path.dirname(__file__), "results")
-    if not os.path.exists(results_dir):
-        os.makedirs(results_dir)
+    os.makedirs(results_dir, exist_ok=True)
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     extra_info = f"{lm_name}_{'-'.join([method.__name__ for method in methods])}"
-    folder_name = f"{extra_info}_{timestamp}"
+    if not folder_name:
+        folder_name = f"{extra_info}_{timestamp}"
     results_folder = os.path.join(results_dir, folder_name)
-    os.makedirs(results_folder)
+    os.makedirs(results_folder, exist_ok=True)
     config = {
         "data": selected_data,
         "methods": [method.__name__ for method in methods],
@@ -241,7 +264,7 @@ def run(
         # create a results directory for the method
         os.makedirs(os.path.join(results_folder, method.__name__))
 
-    for i, data in enumerate(selected_data):
+    for i, data in tqdm(enumerate(selected_data), desc="Data", total=len(selected_data)):
         logging.info(f"Running data {i}: {data['question']}: {data['answer']}")
         if budget <= 0.0:
             logging.error(
@@ -296,11 +319,11 @@ def run(
     pass
 
 
-if __name__ == "__main__":
+def main():
     budget = 30
     samples = [item for item in range(30)]
-    approaches = [io_base]
-
+    # approaches = [io_closedbook, io_base, io, io_zs, plan_solve_basic, plan_solve_plus, cot_zeroshot, cot, cot_sc_1, cot_sc_2, tot, probtree]
+    approaches = [cot]
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s,%(msecs)03d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s',
@@ -310,3 +333,39 @@ if __name__ == "__main__":
     spent = run(samples, approaches, budget, "chatgpt")  # llama3-8b-ollama
 
     logging.info(f"Spent {spent} out of {budget} budget.")
+
+def run_process(samples, approaches, budget, model, folder_name):
+    logging.basicConfig(
+        level=logging.ERROR,
+        format='%(asctime)s,%(msecs)03d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s',
+        datefmt='%Y-%m-%d:%H:%M:%S'
+    )
+    return run(samples, approaches, budget, model, folder_name)
+
+def main_process_pool():
+    budget = 100
+    samples = [item for item in range(30)]
+    # lm = "replicate-llama3-8b-ollama"
+    lm = "chatgpt"
+    # approaches = [io_closedbook, io_base, io, io_zs, plan_solve_basic, plan_solve_plus, cot_zeroshot, cot, cot_sc_1, cot_sc_2, tot, probtree]
+    approaches = [cot_sc_2]
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    extra_info = f"{lm}_{'-'.join([method.__name__ for method in approaches])}"
+    folder_name = f"{extra_info}_{timestamp}"
+    
+    with ProcessPoolExecutor(max_workers=30) as executor:
+        futures = {
+            executor.submit(run_process, samples, [approach], budget, lm, folder_name): approach
+            for approach in approaches
+            }
+        for future in as_completed(futures):
+            task = futures[future]
+            try:
+                spent = future.result()
+                logging.info(f"Task {task} spent {spent} out of {budget} budget.")
+            except Exception as e:
+                logging.error(f"Task {task} generated an exception: {e}")
+
+if __name__ == "__main__":
+    main_process_pool()
+    # main()

@@ -28,6 +28,19 @@ Output:
 Output:
 """
 
+    io_zc_prompt_answer_question = """\
+<Instruction>Answer the question using the provided context. Only output the final answer directly without any other text.</Instruction>
+<Context>{context}</Context>
+<Question>{question}</Question>
+Output:
+"""
+
+    io_closed_book_generation_prompt = """\
+<Instruction>Answer the question. Only output the final answer directly without any other text.</Instruction>
+<Question>{question}</Question>
+Output:
+"""
+
     tree_generation_examples = """\
 Q: Jeremy Theobald and Christopher Nolan share what profession?
 A: {"Jeremy Theobald and Christopher Nolan share what profession?": ["What is Jeremy Theobald's profession?", "What is Christopher Nolan's profession?"]}.
@@ -203,13 +216,17 @@ Output:
         if method == "io_base":
             examples_str = "\n".join([f"{example["question"]}<Answer>{example["io_answer"]}</Answer>" for example in examples])
             prompt = self.io_prompt_answer_question.format(context=current, question=original, examples=examples_str)
-            pass
+        elif method == "io_closedbook":
+            prompt = self.io_closed_book_generation_prompt.format(question=original)
         elif method.startswith("io"):
             if kwargs["phase"] == 0:
                 prompt = self.io_prompt_get_keywords.format(input=original)
             elif kwargs["phase"] == 2:
-                examples_str = "\n".join([f"{example["question"]}<Answer>{example["io_answer"]}</Answer>" for example in examples])
-                prompt = self.io_prompt_answer_question.format(context=current, question=original, examples=examples_str)
+                if method == "io_zc":
+                    prompt = self.io_zc_prompt_answer_question.format(context=current, question=original)
+                else:
+                    examples_str = "\n".join([f"{example["question"]}<Answer>{example["io_answer"]}</Answer>" for example in examples])
+                    prompt = self.io_prompt_answer_question.format(context=current, question=original, examples=examples_str)
         elif method.startswith("probtree"):
             if kwargs.get("openbook_qa", False):
                 prompt = self.open_book_generation_prompt.format(question=kwargs["question"], examples=self.open_book_examples, context=kwargs["context"])
