@@ -4,6 +4,7 @@ import logging
 import os
 from pathlib import Path
 from typing import List, Callable
+from concurrent.futures import ProcessPoolExecutor, as_completed
 
 import project_utils as project
 from graph_of_thoughts import controller, language_models, operations
@@ -247,8 +248,24 @@ def run(
 
 if __name__ == "__main__":
     budget = 30
-    samples = [] # runs all the data
+    samples = [list(range(i * 100, (i + 1) * 100)) for i in range(97)]  
     approaches = [io, cot, cot_zeroshot, cot_sc, plan_solve, plan_solve_plus, tot_base]
-    spent = run(samples, approaches, budget, "chatgpt")
+    
+ 
+    results_folder ="./resultforLlama3"
+    if not os.path.exists(results_folder):
+        os.makedirs(results_folder, exist_ok=True)
 
-    logging.info(f"Spent {spent} out of {budget} budget.")
+
+    with ProcessPoolExecutor(max_workers=50) as executor:
+        future_to_batch = {executor.submit(run, batch, approaches, budget, "replicate-llama3-8b-ollama", results_folder, i+1): i+1 for i, batch in enumerate(samples)}
+        
+        for future in as_completed(future_to_batch):
+            batch_index = future_to_batch[future]
+            try:
+                spent = future.result()
+                logging.info(f"Batch {batch_index}: Spent {spent} out of {budget} budget.")
+            except Exception as e:
+                logging.error(f"Batch {batch_index} generated an exception: {e}")
+
+    logging.info(f"Total Budget Spent: {budget}")
