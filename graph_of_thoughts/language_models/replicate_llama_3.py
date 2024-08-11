@@ -64,8 +64,8 @@ class ReplicateLanguageModel(AbstractLanguageModel):
         :return: Response(s) from the Replicate model.
         :rtype: Union[List[str], str]
         """
-        if self.cache and query in self.respone_cache:
-            return self.respone_cache[query]
+        if self.cache and (query, num_responses) in self.respone_cache:
+            return self.respone_cache[(query, num_responses)]
 
         try:
             response = [self.chat(query) for _ in range(num_responses)]
@@ -74,7 +74,7 @@ class ReplicateLanguageModel(AbstractLanguageModel):
             response = []
 
         if self.cache:
-            self.respone_cache[query] = response
+            self.respone_cache[(query, num_responses)] = response
         return response[0] if num_responses == 1 else response
 
     @backoff.on_exception(backoff.expo, ReplicateError, max_time=600, max_tries=60)
