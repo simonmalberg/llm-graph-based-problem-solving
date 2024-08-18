@@ -515,6 +515,10 @@ def run(
                     break
                 for method in methods:
                     method_results_dir = task_results_dir / method.__name__
+                    output_path: Path = method_results_dir / f"{id}.json"
+                    if output_path.exists():
+                        logging.info(f"Skipping example {id} for method {method.__name__} as it already exists.")
+                        continue
                     logging.info(f"Running method {method.__name__}")
                     logging.info(f"Budget left: {budget}")
                     if budget <= 0.0:
@@ -561,7 +565,6 @@ def run(
                     except Exception as e:
                         logging.error(f"Exception: {e}")
                         logging.error("Trace: {}".format(traceback.format_exc()))
-                    output_path: Path = method_results_dir / f"{id}.json"
                     executor.output_graph(str(output_path))
                     budget -= lm.cost
 
@@ -572,7 +575,7 @@ def main_one_run():
     budget = 30
     samples = None # runs all samples
     # approaches = [io, cot, cot_zeroshot, cot_sc, tot, plan_solve, plan_solve_plus, got]
-    approaches = [io_zs]
+    approaches = [got]
     logging.basicConfig(
         level=logging.ERROR,
         format='%(asctime)s,%(msecs)03d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s',
@@ -599,26 +602,27 @@ def run_process(approaches, budget, model, tasks, samples, results_dir):
     return run(approaches, budget, model, tasks, samples, results_dir)
 
 def main_process_pool():
-    budget = 20
+    budget = 200
     samples = None
-    lm = "replicate-llama3-8b-ollama"
-    # lm = "chatgpt"
+    # lm = "replicate-llama3-8b-ollama"
+    lm = "chatgpt"
     tasks = [task.value for task in list(BBH_Tasks)]
     approaches = [io, io_zs, cot, cot_zeroshot, cot_sc, tot, plan_solve, plan_solve_plus, got]
     # approaches = [io_zs]
-    config = {
-        "tasks": tasks,
-        "methods": [method.__name__ for method in approaches],
-        "lm": lm,
-        "budget": budget,
-    }
-    results_dir = project.create_results_dir(
-            directory=os.path.dirname(__file__),
-            lm_name=lm,
-            methods=approaches,
-            config=config,
-            tasks=tasks
-        )
+    # config = {
+    #     "tasks": tasks,
+    #     "methods": [method.__name__ for method in approaches],
+    #     "lm": lm,
+    #     "budget": budget,
+    # }
+    # results_dir = project.create_results_dir(
+    #         directory=os.path.dirname(__file__),
+    #         lm_name=lm,
+    #         methods=approaches,
+    #         config=config,
+    #         tasks=tasks
+    #     )
+    results_dir = Path("/Users/felix/Programming/llm-graph-based-problem-solving/examples/bigbench_hard/results/chatgpt_final")
     
     with ProcessPoolExecutor(max_workers=30) as executor:
         futures = {
@@ -635,5 +639,5 @@ def main_process_pool():
                 logging.error(f"Task {task} generated an exception: {e}")
 
 if __name__ == "__main__":
-    # main_process_pool()
-    main_one_run()
+    main_process_pool()
+    # main_one_run()

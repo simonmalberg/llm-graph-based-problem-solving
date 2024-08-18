@@ -77,12 +77,17 @@ class ProbtreeReasoning(Operation):
     def _execute(self, lm: AbstractLanguageModel, prompter: Prompter, parser: Parser, **kwargs):
         base_state = self.get_previous_thoughts()[0].state
         self.dict_from_understanding = base_state["current"]
-        self.tree = self.build_tree()
-        while not self.tree.executed:
-            node = self.find_next_executable_node()
-            node.execute(lm, prompter, parser, **kwargs)
-        new_state = base_state.copy()
-        new_state["tree"] = self.tree.to_dict()
-        new_state["current"] = self.tree.answers.final_answer.text
+        try:
+            self.tree = self.build_tree()
+            while not self.tree.executed:
+                node = self.find_next_executable_node()
+                node.execute(lm, prompter, parser, **kwargs)
+            new_state = base_state.copy()
+            new_state["tree"] = self.tree.to_dict()
+            new_state["current"] = self.tree.answers.final_answer.text
+        except:
+            new_state = base_state.copy()
+            new_state["tree"] = None
+            new_state["current"] = None
         new_state["phase"] += 1
         self.thoughts.append(Thought({**base_state, **new_state}))

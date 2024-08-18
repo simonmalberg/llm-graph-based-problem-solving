@@ -37,9 +37,14 @@ class HotpotQAParser(parser.Parser):
                 new_states.append(new_state)
             elif state["method"].startswith("probtree"):
                 new_state = state.copy()
-                output_tree = utils.parse_tree_and_extract_logprobs(text)
-                new_state["current"] = output_tree
-                new_state["phase"] = state["phase"] + 1
+                try:
+                    output_tree = utils.parse_tree_and_extract_logprobs(text)
+                    new_state["current"] = output_tree
+                    new_state["phase"] = state["phase"] + 1
+                except Exception as e:
+                    logging.error(f"Could not parse tree: {text}")
+                    new_state["current"] = None
+                    new_state["phase"] = state["phase"] + 1
                 new_states.append(new_state)
             elif state["method"].startswith("cot_sc") or state["method"].startswith("cot") or state["method"].startswith("plan_solve"):
                 if state["phase"] == 0:
