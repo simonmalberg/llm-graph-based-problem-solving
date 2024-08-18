@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, List, Union
+from typing import Dict, List, Union, Any
 from graph_of_thoughts import parser
 from . import utils
 
@@ -10,6 +10,9 @@ class CommonsenseQAParser(parser.Parser):
 
     Inherits from the Parser class and implements its abstract methods.
     """
+
+    def parse_retrieve_answer(self, state: Dict, documents: Dict[Dict, Any]) -> List[Dict]:
+        pass
 
     def __init__(self) -> None:
         """
