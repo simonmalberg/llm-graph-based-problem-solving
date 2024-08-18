@@ -4,6 +4,8 @@ import datetime
 import json
 from pathlib import Path
 from typing import List, Callable
+
+from tqdm import tqdm
 from graph_of_thoughts import controller, language_models, operations
 import project_utils as project
 
@@ -27,7 +29,6 @@ def io() -> operations.GraphOfOperations:
     operations_graph = operations.GraphOfOperations()
 
     operations_graph.append_operation(operations.Generate(1, 1))
-    operations_graph.append_operation(operations.Score(1, False))
     operations_graph.append_operation(operations.GroundTruth(utils.test_answer))
 
     return operations_graph
@@ -59,7 +60,6 @@ def cotsc() -> operations.GraphOfOperations:
     operations_graph.append_operation(operations.Generate(1, num_branches))
     operations_graph.append_operation(operations.ScoreByFrequency(ignore_none=True))
     operations_graph.append_operation(operations.KeepBestN(1, True))
-    operations_graph.append_operation(operations.Score(1, False))
     operations_graph.append_operation(operations.GroundTruth(utils.test_answer))
 
     return operations_graph
@@ -156,14 +156,14 @@ def run(
         # create a results directory for the method
         os.makedirs(os.path.join(results_folder, method.__name__))
 
-    for data in selected_data:
+    for data in tqdm(selected_data, desc="Data"):
         logging.info(f"Running data {data['id']: }{data['question']}: {data['answer']}")
         if budget <= 0.0:
             logging.error(
                 f"Budget has been depleted, stopping. Data {data[0]} has not been run."
             )
             break
-        for method in methods:
+        for method in tqdm(methods, desc="Methods"):
             logging.info(f"Running method {method.__name__}")
             logging.info(f"Budget left: {budget}")
             if budget <= 0.0:
@@ -171,14 +171,26 @@ def run(
                     f"Budget has been depleted, stopping. Method {method.__name__} has not been run."
                 )
                 break
-            lm = language_models.ChatGPT(
-                os.path.join(
-                    os.path.dirname(__file__),
-                    "../../graph_of_thoughts/language_models/config.json",
-                ),
-                model_name=lm_name,
-                cache=True,
-            )
+            if lm_name.startswith("chatgpt"):
+                lm = language_models.ChatGPT(
+                    os.path.join(
+                        os.path.dirname(__file__),
+                        "../../graph_of_thoughts/language_models/config.json",
+                    ),
+                    model_name=lm_name,
+                    cache=True,
+                )
+            elif lm_name.startswith("replicate"):
+                lm = language_models.ReplicateLanguageModel(
+                    os.path.join(
+                        os.path.dirname(__file__),
+                        "../../graph_of_thoughts/language_models/config.json",
+                    ),
+                    model_name=lm_name,
+                    cache=True,
+                )
+            else:
+                raise ValueError(f"Unknown LM: {lm_name}")
             operations_graph = method()
             executor = controller.Controller(
                 lm,
@@ -219,8 +231,8 @@ if __name__ == "__main__":
     samples = []
     approaches = [io, cot, cotsc, plan_and_solve_basic, plan_and_solve_plus, tot]
 
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.ERROR)
 
-    spent = run(samples, approaches, budget, "chatgpt")
+    spent = run(samples, approaches, budget, "replicate-llama3-8b-ollama")
 
     logging.info(f"Spent {spent} out of {budget} budget.")

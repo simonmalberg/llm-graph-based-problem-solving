@@ -6,7 +6,6 @@ import os
 from functools import partial
 from typing import List, Callable, Dict
 
-from tqdm import tqdm
 
 from graph_of_thoughts import controller, language_models, operations
 from graph_of_thoughts.operations.probtree_operation import ProbtreeReasoning
@@ -262,9 +261,9 @@ def run(
     )
     for method in methods:
         # create a results directory for the method
-        os.makedirs(os.path.join(results_folder, method.__name__))
+        os.makedirs(os.path.join(results_folder, method.__name__), exist_ok=True)
 
-    for i, data in tqdm(enumerate(selected_data), desc="Data", total=len(selected_data)):
+    for i, data in zip(data_ids, selected_data):
         logging.info(f"Running data {i}: {data['question']}: {data['answer']}")
         if budget <= 0.0:
             logging.error(
@@ -272,6 +271,16 @@ def run(
             )
             break
         for method in methods:
+
+            run_output_path = os.path.join(
+                results_folder,
+                method.__name__,
+                f"{i}.json",
+            )
+            if os.path.exists(run_output_path):
+                logging.info(f"Skipping method {method.__name__} for data {i}")
+                continue
+
             logging.info(f"Running method {method.__name__}")
             logging.info(f"Budget left: {budget}")
             if budget <= 0.0:
@@ -306,12 +315,7 @@ def run(
             #     executor.run()
             # except Exception as e:
             #     logging.error(f"Exception: {e}")
-            path = os.path.join(
-                results_folder,
-                method.__name__,
-                f"{i}.json",
-            )
-            executor.output_graph(path)
+            executor.output_graph(run_output_path)
             budget -= lm.cost
 
     return orig_budget - budget
@@ -343,23 +347,31 @@ def run_process(samples, approaches, budget, model, folder_name):
     return run(samples, approaches, budget, model, folder_name)
 
 def main_process_pool():
+    import numpy as np
+
     budget = 100
-    samples = [item for item in range(30)]
+    # samples = [item for item in range(30)]
+    # samples = None
+    batch_of_samples = [item for item in range(5000)]
+    split_batches = np.array_split(batch_of_samples, 30)
+    split_batches = [list(batch) for batch in split_batches]
     # lm = "replicate-llama3-8b-ollama"
     lm = "chatgpt"
-    # approaches = [io_closedbook, io_base, io, io_zs, plan_solve_basic, plan_solve_plus, cot_zeroshot, cot, cot_sc_1, cot_sc_2, tot, probtree]
-    approaches = [cot_sc_2]
-    timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    extra_info = f"{lm}_{'-'.join([method.__name__ for method in approaches])}"
-    folder_name = f"{extra_info}_{timestamp}"
+    approaches = [io_closedbook, io_base, io, io_zs, plan_solve_basic, plan_solve_plus, cot_zeroshot, cot, cot_sc_1, cot_sc_2, tot]
+    # approaches = [probtree]
+    # timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    # extra_info = f"{lm}_{'-'.join([method.__name__ for method in approaches])}"
+    # folder_name = f"{extra_info}_{timestamp}"
+    folder_name = "chatgpt_final"
     
-    with ProcessPoolExecutor(max_workers=30) as executor:
+    with ProcessPoolExecutor(max_workers=5) as executor:
         futures = {
-            executor.submit(run_process, samples, [approach], budget, lm, folder_name): approach
-            for approach in approaches
+            executor.submit(run_process, samples, approaches, budget, lm, folder_name): samples
+            # for approach in approaches
+            for samples in split_batches
             }
         for future in as_completed(futures):
-            task = futures[future]
+            task = futures[future]                                                                           
             try:
                 spent = future.result()
                 logging.info(f"Task {task} spent {spent} out of {budget} budget.")

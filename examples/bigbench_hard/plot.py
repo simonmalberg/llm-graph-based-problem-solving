@@ -1,5 +1,6 @@
 from pathlib import Path
 from examples.base_result_plotter import BaseResultPlotter, Config
+from examples.bigbench_hard.bbh_tasks import BBHTask
 
 class BigbenchHardPlotter(BaseResultPlotter):
 
@@ -23,20 +24,59 @@ class BigbenchHardPlotter(BaseResultPlotter):
                 cost = op["cost"]
         return score, solved, cost, prompt_tokens, completion_tokens
 
+def main_loop_tasks():
+    # runs_to_plot = ["chatgpt_final", "replicate_final"]
+    # cost_upper = [12, 6]
 
-if __name__ == "__main__":
+    run = "chatgpt_final"
+
+    for task in BBHTask:
+        doc_plotter = BigbenchHardPlotter(
+            # result_directory=Path(__file__).parent / "results" / "llama3-8b-ollama_io-cot_2024-06-12_14-50-52",
+            result_directory=Path(__file__).parent / "results" / run / task.value,
+            config=Config(
+                methods_order=["io_zs", "plan_solve", "plan_solve_plus", "cot_zeroshot", "io", "cot", "cot_sc", "tot", "got"],
+                methods_labels=["IO-zs", "PS", "PS+", "CoT-zs", "IO", "CoT", "CoT-SC", "ToT", "GoT"],
+                y_lower=0,
+                y_upper=1.0,
+                cost_upper=0.6,
+                cost_in_percent=False,
+                display_solved=True,
+                annotation_offset=-0.07,
+                display_left_ylabel=True,
+                display_right_ylabel=True,
+                left_ylabel="Accuracy",
+                right_ylabel="Total cost per method in USD",
+                figsize=(7.5, 4),
+                fig_fontsize=12,
+                # title="correct results out of 20",
+                aggregate_subtasks=True,
+                plot_only_accuracy=True,
+                )
+            )
+        doc_plotter.plot_results()
+
+
+
+def main_aggregate():
+
+    runs_to_plot = ["chatgpt_final", "replicate_final"]
+    cost_upper = [12, 6]
+
+    run = "chatgpt_final"
+
     doc_plotter = BigbenchHardPlotter(
         # result_directory=Path(__file__).parent / "results" / "llama3-8b-ollama_io-cot_2024-06-12_14-50-52",
-        result_directory=Path(__file__).parent / "results" / "chatgpt_io-io_zs-cot-cot_zeroshot-cot_sc-tot-plan_solve-plan_solve_plus-got_2024-08-10_19-03-03",
+        result_directory=Path(__file__).parent / "results" / run,
         config=Config(
             methods_order=["io_zs", "plan_solve", "plan_solve_plus", "cot_zeroshot", "io", "cot", "cot_sc", "tot", "got"],
             methods_labels=["IO-zs", "PS", "PS+", "CoT-zs", "IO", "CoT", "CoT-SC", "ToT", "GoT"],
             y_lower=0,
-            y_upper=0.5,
-            cost_upper=12,
+            y_upper=1.0,
+            cost_upper=9,
             cost_in_percent=False,
             display_solved=True,
-            annotation_offset=-0.035,
+            annotation_offset=-0.07,
             display_left_ylabel=True,
             display_right_ylabel=True,
             left_ylabel="Accuracy",
@@ -49,3 +89,8 @@ if __name__ == "__main__":
             )
         )
     doc_plotter.plot_results()
+
+
+if __name__ == "__main__":
+    # main_aggregate()
+    main_loop_tasks()

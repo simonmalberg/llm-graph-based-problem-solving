@@ -14,6 +14,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import List
 import matplotlib.pyplot as plt
+import numpy as np
 
 @dataclass
 class Config:
@@ -114,6 +115,26 @@ class BaseResultPlotter(ABC):
         p = solved / total
         Z_value = 1.96
         return Z_value * ((p * (1 - p) / total) ** 0.5)
+    
+    # def calculate_mean_and_confidence_interval_for_general_score(self, scores):
+    #     if len(scores) == 0:
+    #         return 0
+    #     mean = sum(scores) / len(scores)
+    #     variance = sum([(x - mean) ** 2 for x in scores]) / (len(scores) - 1)
+    #     standard_error = (variance / len(scores)) ** 0.5
+    #     confidence_interval = 1.96 * standard_error
+    #     return mean, confidence_interval
+    
+    def bootstrap_confidence_interval(self, scores, num_samples=1000, confidence_level=0.95):
+        n = len(scores)
+        means = []
+        for _ in range(num_samples):
+            sample = np.random.choice(scores, size=n, replace=True)
+            means.append(np.mean(sample))
+        means = sorted(means)
+        lower_bound = np.percentile(means, (1 - confidence_level) / 2 * 100)
+        upper_bound = np.percentile(means, (1 + confidence_level) / 2 * 100)
+        return lower_bound, upper_bound
 
     def get_plotting_data(self):
         results_complete = self.get_complete_results(aggregate_subtasks=self.config.aggregate_subtasks)
@@ -140,14 +161,15 @@ class BaseResultPlotter(ABC):
         fig, ax = plt.subplots(dpi=150, figsize=self.config.figsize)
         positions = range(1, len(methods_order) + 1)
         fig_fontsize = self.config.fig_fontsize
+        ax2_width = 0.25
+        ax2_offset = 0.25
         if self.config.plot_only_accuracy:
             confidence_intervals = [    
                 self.calculate_confidence_interval_for_binary_data(len(scores), sum(scores))
                 for scores in scores_ordered
             ]
-            ax2_width = 0.25
-            ax2_offset = 0.25
-            ax.bar(positions, [sum(scores) / len(scores) for scores in scores_ordered], color="black", alpha=0.5, width=0.25)
+            means = [sum(scores) / len(scores) for scores in scores_ordered]
+            ax.bar(positions, means, color="black", alpha=0.5, width=0.25)
             for i, (method, scores) in enumerate(zip(methods_order, scores_ordered)):
                 ax.errorbar(
                     positions[i],
@@ -157,12 +179,34 @@ class BaseResultPlotter(ABC):
                     color="black",
                     capsize=5,
                 )
-            ax.set_ylim(self.config.y_lower, self.config.y_upper)
         else:
-            ax.boxplot(scores_ordered, positions=positions, meanline=True, showmeans=True)
-            ax.set_ylim(self.config.y_lower, self.config.y_upper)
-            ax2_width = 1
-            ax2_offset = 0
+
+            bounds = [
+                self.bootstrap_confidence_interval(scores)
+                for scores in scores_ordered
+            ]
+            lower_bounds = [x[0] for x in bounds]
+            upper_bounds = [x[1] for x in bounds]
+            means = [sum(scores) / len(scores) for scores in scores_ordered]
+            ax.bar(positions, means, color="black", alpha=0.5, width=0.25)
+            for i, (method, scores) in enumerate(zip(methods_order, scores_ordered)):
+                y_err = [[means[i] - lower_bounds[i]], [upper_bounds[i] - means[i]]]
+                ax.errorbar(
+                    positions[i],
+                    sum(scores) / len(scores),
+                    yerr=y_err,
+                    fmt="",
+                    color="black",
+                    capsize=5,
+                )
+            # yerr = [[mean_score - lower_bound], [upper_bound - mean_score]]:
+            
+            # ax.boxplot(scores_ordered, positions=positions, meanline=True, showmeans=True)
+            # ax.set_ylim(self.config.y_lower, self.config.y_upper)
+            # ax2_width = 1
+            # ax2_offset = 0
+        
+        ax.set_ylim(self.config.y_lower, self.config.y_upper)
 
         ax.set_xticks(range(1, len(methods_order) + 1))
         ax.set_xticklabels(self.config.methods_labels, fontsize=fig_fontsize)
@@ -212,3 +256,4 @@ class BaseResultPlotter(ABC):
                 count += 1
 
         fig.savefig(f"{self.result_directory}.pdf", bbox_inches="tight")
+        fig.clear()

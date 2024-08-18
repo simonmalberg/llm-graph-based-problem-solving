@@ -3,6 +3,7 @@ import logging
 import os
 from datetime import datetime
 from pathlib import Path
+from typing import List
 
 
 def project_dir() -> Path:
@@ -15,7 +16,7 @@ def datasets_dir() -> Path:
     return Path(__file__).resolve().parent / "datasets"
 
 
-def create_results_dir(directory: str, lm_name: str, methods: [str], config: dict, tasks: [] = []) -> Path:
+def create_results_dir(directory: str, lm_name: str, methods: List[str], config: dict, tasks = []) -> Path:
     """
     Creates the results directory for the given dataset and methods.
     :param directory: The directory inside which the results directory is created.
