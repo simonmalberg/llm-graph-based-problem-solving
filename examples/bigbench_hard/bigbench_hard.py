@@ -513,7 +513,7 @@ def run(
             for id, example in tqdm(enumerate(task_data), desc="Examples", total=len(task_data)):
                 if samples_per_task and id >= samples_per_task:  # end evaluation when samples limit is reached
                     break
-                for method in methods:
+                for method in tqdm(methods, desc="Methods"):
                     method_results_dir = task_results_dir / method.__name__
                     output_path: Path = method_results_dir / f"{id}.json"
                     if output_path.exists():

@@ -16,6 +16,12 @@ class GSM8KPrompter(prompter.Prompter):
     <Input>{input}</Input>
     Output: """
 
+    cot_prompt_zeroshot_base = """\
+        Provide the answer in the exact format as given.
+        <Instruction>Solve the following math problems. Think Step by Step and provide the final integer answer without comma or dot in the following format: <Answer>answer</Answer>. </Instruction>
+        <Input>{input}</Input>
+        Output: """
+
     io_prompt_base = """\
     Provide the answer in the exact format as given.
     <Instruction>Solve the following math problems and provide ONLY the integer solution with no comma or dot. Do not output any thoughts, only the answer after.</Instruction>
@@ -198,10 +204,14 @@ class GSM8KPrompter(prompter.Prompter):
             input = current
 
         full_prompt = ""
-        if method.startswith("io"):
+        if method == "io":
             full_prompt =  self.io_prompt_base.format(input=input)
-        elif method.startswith("cot"):
+        elif method == "io_zeroshot":
+            full_prompt =  self.io_prompt_zeroshot_base.format(input=input)
+        elif method == "cot" or method == "cotsc":
             full_prompt =  self.cot_prompt_base.format(input=input)
+        elif method == "cot_zeroshot":
+            full_prompt = self.cot_prompt_zeroshot_base.format(input=input)
         elif method.startswith("plan_and_solve"):
             if method.endswith("basic"):
                 return self.plan_and_solve_prompt_base.format(input=input, plan_and_solve_prompt=self.plan_solve_basic_prompt)

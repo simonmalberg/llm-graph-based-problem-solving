@@ -34,7 +34,15 @@ def io() -> operations.GraphOfOperations:
     return operations_graph
 
 
+def io_zeroshot():
+    return io()
+
+
 def cot() -> operations.GraphOfOperations:
+    return io()
+
+
+def cot_zeroshot() -> operations.GraphOfOperations:
     return io()
 
 
@@ -227,12 +235,14 @@ def run(
 
 
 if __name__ == "__main__":
-    budget = 30
+    budget = 300
     samples = []
-    approaches = [io, cot, cotsc, plan_and_solve_basic, plan_and_solve_plus, tot]
+    # lm_name = "chatgpt"
+    lm_name = "replicate-llama3-8b-ollama"
+    approaches = [io, io_zeroshot, plan_and_solve_basic, plan_and_solve_plus, cot, cotsc, cot_zeroshot, tot, got]
 
     logging.basicConfig(level=logging.ERROR)
 
-    spent = run(samples, approaches, budget, "replicate-llama3-8b-ollama")
+    spent = run(samples, approaches, budget, lm_name)
 
     logging.info(f"Spent {spent} out of {budget} budget.")

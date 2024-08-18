@@ -2,14 +2,22 @@ import datetime
 import json
 import logging
 import os
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 from typing import List, Callable
 
+from tqdm import tqdm
+
 import project_utils as project
 from graph_of_thoughts import controller, language_models, operations
-from .src import utils
-from .src.parser import CommonsenseQAParser
-from .src.prompter import CommonsenseQAPrompter
+try:
+    from .src import utils
+    from .src.parser import CommonsenseQAParser
+    from .src.prompter import CommonsenseQAPrompter
+except ImportError:
+    from src import utils
+    from src.parser import CommonsenseQAParser
+    from src.prompter import CommonsenseQAPrompter
 
 
 def io() -> operations.GraphOfOperations:
@@ -25,6 +33,10 @@ def io() -> operations.GraphOfOperations:
     operations_graph.append_operation(operations.GroundTruth(utils.test_answer))
 
     return operations_graph
+
+
+def io_zeroshot():
+    return io()
 
 
 def cot() -> operations.GraphOfOperations:
@@ -164,13 +176,13 @@ def run(
     selected_data = [data[i] for i in data_ids]
 
     results_dir = os.path.join(os.path.dirname(__file__), "results")
-    if not os.path.exists(results_dir):
-        os.makedirs(results_dir)
+
+    os.makedirs(results_dir, exist_ok=True)
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     extra_info = f"{lm_name}_{'-'.join([method.__name__ for method in methods])}"
     folder_name = f"{extra_info}_{timestamp}"
     results_folder = os.path.join(results_dir, folder_name)
-    os.makedirs(results_folder)
+    os.makedirs(results_folder, exist_ok=True)
     config = {
         "data": selected_data,
         "methods": [method.__name__ for method in methods],
@@ -190,7 +202,7 @@ def run(
         # create a results directory for the method
         os.makedirs(os.path.join(results_folder, method.__name__))
 
-    for data in selected_data:
+    for data in tqdm(selected_data, desc="Data"):
 
         logging.info(f"Running data {data['id']: }{data['question']}: {data['answerKey']}")
         if budget <= 0.0:
@@ -245,10 +257,41 @@ def run(
     return orig_budget - budget
 
 
-if __name__ == "__main__":
+def run_process(samples, approaches, budget, model):
+    logging.basicConfig(
+        level=logging.ERROR,
+        format='%(asctime)s,%(msecs)03d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s',
+        datefmt='%Y-%m-%d:%H:%M:%S'
+    )
+    return run(samples, approaches, budget, model)
+
+def main_process_pool():
     budget = 30
-    samples = [] # runs all the data
-    approaches = [io, cot, cot_zeroshot, cot_sc, plan_solve, plan_solve_plus, tot_base]
+    samples = []  # runs all the data
+    approaches = [io_zeroshot, io, cot, cot_zeroshot, cot_sc, plan_solve, plan_solve_plus, tot_base]
+    lm_name = "chatgpt"
+
+    with ProcessPoolExecutor(max_workers=30) as executor:
+        futures = {
+            executor.submit(run_process, samples, [approach], budget, lm_name): approach
+            for approach in approaches
+        }
+        for future in as_completed(futures):
+            task = futures[future]
+            try:
+                spent = future.result()
+                logging.info(f"Task {task} spent {spent} out of {budget} budget.")
+            except Exception as e:
+                logging.error(f"Task {task} generated an exception: {e}")
+
+def main():
+    budget = 30
+    samples = []  # runs all the data
+    approaches = [io_zeroshot, io, cot, cot_zeroshot, cot_sc, plan_solve, plan_solve_plus, tot_base]
     spent = run(samples, approaches, budget, "chatgpt")
 
     logging.info(f"Spent {spent} out of {budget} budget.")
+
+
+if __name__ == "__main__":
+    main_process_pool()

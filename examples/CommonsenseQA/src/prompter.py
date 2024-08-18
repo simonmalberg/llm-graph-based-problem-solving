@@ -12,6 +12,14 @@ class CommonsenseQAPrompter(prompter.Prompter):
     Inherits from the Prompter class and implements its abstract methods.
     """
 
+    io_zeroshot_prompt = """<Instruction> Use your commonsense knowledge to answer the following question. Choose the correct answer from the options provided below. Output the answer in the following format: 
+        <Answer>answer</Answer>
+        </Instruction>
+
+        Input: {input}
+        Output:"""
+
+
     io_prompt = """<Instruction> Use your commonsense knowledge to answer the following question. Choose the correct answer from the options provided below. Output the answer in the following format: 
     <Answer>answer</Answer>
     </Instruction>
@@ -274,8 +282,10 @@ class CommonsenseQAPrompter(prompter.Prompter):
             input = current
 
         logging.info(f"Generating prompt with method: {method}, current: {current}")
-        if method.startswith("io"):
+        if method=="io":
             return self.io_prompt.format(input=input)
+        elif method == "io_zeroshot":
+            return self.io_zeroshot_prompt.format(input=input)
         elif method == "cot" or method == "cot_sc":
             return self.cot_prompt.format(input=input)
         elif method == "cot_zeroshot":
