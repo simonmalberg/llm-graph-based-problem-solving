@@ -323,61 +323,16 @@ def run(
     pass
 
 
-def main():
+if __name__ == "__main__":
     budget = 30
-    samples = [item for item in range(30)]
-    # approaches = [io_closedbook, io_base, io, io_zs, plan_solve_basic, plan_solve_plus, cot_zeroshot, cot, cot_sc_1, cot_sc_2, tot, probtree]
-    approaches = [cot]
+    samples = None
+    approaches = [io_closedbook, io_base, io, io_zs, plan_solve_basic, plan_solve_plus, cot_zeroshot, cot, cot_sc_1, cot_sc_2, tot, probtree]
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s,%(msecs)03d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s',
         datefmt='%Y-%m-%d:%H:%M:%S'
     )
 
-    spent = run(samples, approaches, budget, "chatgpt")  # llama3-8b-ollama
+    spent = run(samples, approaches, budget, "chatgpt")
 
     logging.info(f"Spent {spent} out of {budget} budget.")
-
-def run_process(samples, approaches, budget, model, folder_name):
-    logging.basicConfig(
-        level=logging.ERROR,
-        format='%(asctime)s,%(msecs)03d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s',
-        datefmt='%Y-%m-%d:%H:%M:%S'
-    )
-    return run(samples, approaches, budget, model, folder_name)
-
-def main_process_pool():
-    import numpy as np
-
-    budget = 100
-    # samples = [item for item in range(30)]
-    # samples = None
-    batch_of_samples = [item for item in range(5000)]
-    split_batches = np.array_split(batch_of_samples, 30)
-    split_batches = [list(batch) for batch in split_batches]
-    # lm = "replicate-llama3-8b-ollama"
-    lm = "chatgpt"
-    approaches = [io_closedbook, io_base, io, io_zs, plan_solve_basic, plan_solve_plus, cot_zeroshot, cot, cot_sc_1, cot_sc_2, tot]
-    # approaches = [probtree]
-    # timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    # extra_info = f"{lm}_{'-'.join([method.__name__ for method in approaches])}"
-    # folder_name = f"{extra_info}_{timestamp}"
-    folder_name = "chatgpt_final"
-    
-    with ProcessPoolExecutor(max_workers=5) as executor:
-        futures = {
-            executor.submit(run_process, samples, approaches, budget, lm, folder_name): samples
-            # for approach in approaches
-            for samples in split_batches
-            }
-        for future in as_completed(futures):
-            task = futures[future]                                                                           
-            try:
-                spent = future.result()
-                logging.info(f"Task {task} spent {spent} out of {budget} budget.")
-            except Exception as e:
-                logging.error(f"Task {task} generated an exception: {e}")
-
-if __name__ == "__main__":
-    main_process_pool()
-    # main()

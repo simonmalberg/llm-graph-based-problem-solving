@@ -571,11 +571,10 @@ def run(
     return orig_budget - budget
 
 
-def main_one_run():
+if __name__ == "__main__":
     budget = 30
     samples = None # runs all samples
-    # approaches = [io, cot, cot_zeroshot, cot_sc, tot, plan_solve, plan_solve_plus, got]
-    approaches = [got]
+    approaches = [io, io_zs, cot, cot_zeroshot, cot_sc, tot, plan_solve, plan_solve_plus, got]
     logging.basicConfig(
         level=logging.ERROR,
         format='%(asctime)s,%(msecs)03d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s',
@@ -588,56 +587,6 @@ def main_one_run():
     # ]]
     tasks = []
 
-    spent = run(approaches, budget, "replicate-llama3-8b-ollama", tasks, samples)
+    spent = run(approaches, budget, "chatgpt", tasks, samples)
 
     logging.info(f"Spent {spent} out of {budget} budget.")
-
-
-def run_process(approaches, budget, model, tasks, samples, results_dir):
-    logging.basicConfig(
-        level=logging.ERROR,
-        format='%(asctime)s,%(msecs)03d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s',
-        datefmt='%Y-%m-%d:%H:%M:%S'
-    )
-    return run(approaches, budget, model, tasks, samples, results_dir)
-
-def main_process_pool():
-    budget = 200
-    samples = None
-    # lm = "replicate-llama3-8b-ollama"
-    lm = "chatgpt"
-    tasks = [task.value for task in list(BBH_Tasks)]
-    approaches = [io, io_zs, cot, cot_zeroshot, cot_sc, tot, plan_solve, plan_solve_plus, got]
-    # approaches = [io_zs]
-    # config = {
-    #     "tasks": tasks,
-    #     "methods": [method.__name__ for method in approaches],
-    #     "lm": lm,
-    #     "budget": budget,
-    # }
-    # results_dir = project.create_results_dir(
-    #         directory=os.path.dirname(__file__),
-    #         lm_name=lm,
-    #         methods=approaches,
-    #         config=config,
-    #         tasks=tasks
-    #     )
-    results_dir = Path("/Users/felix/Programming/llm-graph-based-problem-solving/examples/bigbench_hard/results/chatgpt_final")
-    
-    with ProcessPoolExecutor(max_workers=30) as executor:
-        futures = {
-            executor.submit(run_process, [approach], budget, lm, [task], samples, results_dir): (task, approach)
-            for task in tasks
-            for approach in approaches
-            }
-        for future in as_completed(futures):
-            task = futures[future]
-            try:
-                spent = future.result()
-                logging.info(f"Task {task} spent {spent} out of {budget} budget.")
-            except Exception as e:
-                logging.error(f"Task {task} generated an exception: {e}")
-
-if __name__ == "__main__":
-    main_process_pool()
-    # main_one_run()
