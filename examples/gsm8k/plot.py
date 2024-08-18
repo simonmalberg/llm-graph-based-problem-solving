@@ -27,7 +27,7 @@ class GSM8KPlotter(BaseResultPlotter):
 if __name__ == "__main__":
     doc_plotter = GSM8KPlotter(
         # result_directory=Path(__file__).parent / "results" / "llama3-8b-ollama_io-cot_2024-06-12_14-50-52",
-        result_directory=Path(__file__).parent / "results" / "replicate_final",
+        result_directory=Path(__file__).parent / "results" / "chatgpt_final",
         config=Config(
             methods_order=["io_zeroshot", "plan_and_solve_basic", "plan_and_solve_plus", "io", "cot", "cotsc", "tot", "got"],
             methods_labels=["IO-zs", "PS", "PS+", "IO", "CoT", "CoT-SC", "ToT", "GoT"],

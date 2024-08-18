@@ -61,7 +61,7 @@ def main_loop_tasks():
 def main_aggregate():
 
     runs_to_plot = ["chatgpt_final", "replicate_final"]
-    cost_upper = [12, 6]
+    # cost_upper = [12, 6]
 
     run = "chatgpt_final"
 
@@ -92,5 +92,5 @@ def main_aggregate():
 
 
 if __name__ == "__main__":
-    # main_aggregate()
-    main_loop_tasks()
+    main_aggregate()
+    # main_loop_tasks()

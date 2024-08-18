@@ -28,9 +28,9 @@ class GSM8KPlotter(BaseResultPlotter):
 if __name__ == "__main__":
 
     runs_to_plot = ["chatgpt_final", "gpt4_turbo_final", "replicate_final"]
-    cost_upper = [60, 330, 12]
+    cost_upper = [60, 360, 12]
 
-    run = "gpt4_turbo_final"
+    run = "replicate_final"
     doc_plotter = GSM8KPlotter(
         # result_directory=Path(__file__).parent / "results" / "llama3-8b-ollama_io-cot_2024-06-12_14-50-52",
         result_directory=Path(__file__).parent / "results" / run,
@@ -40,7 +40,7 @@ if __name__ == "__main__":
             methods_labels=["PS", "PS+", "CoT-zs", "IO", "CoT", "CoT-SC", "ToT"],
             y_lower=0,
             y_upper=1,
-            cost_upper=360,
+            cost_upper=12,
             display_solved=True,
             annotation_offset=-0.1,
             display_left_ylabel=True,

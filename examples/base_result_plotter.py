@@ -163,7 +163,11 @@ class BaseResultPlotter(ABC):
         fig_fontsize = self.config.fig_fontsize
         ax2_width = 0.25
         ax2_offset = 0.25
+
+        latex_table = "\\begin{table}[h]\n\\centering\n\\begin{tabular}{|c|r|r|}\n\\hline\n"
+
         if self.config.plot_only_accuracy:
+            latex_table += "Method & \multicolumn{1}{c|}{Accuracy} & \multicolumn{1}{c|}{Cost (\$)} \\\\\n\\hline\n"
             confidence_intervals = [    
                 self.calculate_confidence_interval_for_binary_data(len(scores), sum(scores))
                 for scores in scores_ordered
@@ -171,6 +175,9 @@ class BaseResultPlotter(ABC):
             means = [sum(scores) / len(scores) for scores in scores_ordered]
             ax.bar(positions, means, color="black", alpha=0.5, width=0.25)
             for i, (method, scores) in enumerate(zip(methods_order, scores_ordered)):
+                score_entry = f"${means[i]*100:.1f}\% \\pm {confidence_intervals[i]*100:.1f}\%$"
+                cost_entry = f"${total_costs[i]:.2f}$"
+                latex_table += f"{self.config.methods_labels[i]} & {score_entry} & {cost_entry} \\\\\n\\hline\n"
                 ax.errorbar(
                     positions[i],
                     sum(scores) / len(scores),
@@ -180,7 +187,7 @@ class BaseResultPlotter(ABC):
                     capsize=5,
                 )
         else:
-
+            latex_table += "Method & \multicolumn{1}{c|}{F1} & \multicolumn{1}{c|}{Cost (\$)} \\\\\n\\hline\n"
             bounds = [
                 self.bootstrap_confidence_interval(scores)
                 for scores in scores_ordered
@@ -191,6 +198,10 @@ class BaseResultPlotter(ABC):
             ax.bar(positions, means, color="black", alpha=0.5, width=0.25)
             for i, (method, scores) in enumerate(zip(methods_order, scores_ordered)):
                 y_err = [[means[i] - lower_bounds[i]], [upper_bounds[i] - means[i]]]
+                score_entry = f"${means[i]:.2f} \\pm ({means[i] - lower_bounds[i]:.2f}, {upper_bounds[i] - means[i]:.2f})$"
+                cost_entry = f"${total_costs[i]:.2f}$"
+                
+                latex_table += f"{self.config.methods_labels[i]} & {score_entry} & {cost_entry} \\\\\n\\hline\n"
                 ax.errorbar(
                     positions[i],
                     sum(scores) / len(scores),
@@ -257,3 +268,7 @@ class BaseResultPlotter(ABC):
 
         fig.savefig(f"{self.result_directory}.pdf", bbox_inches="tight")
         fig.clear()
+        latex_table += "\\end{tabular}\n\\caption{Performance and Cost Summary}\n\\end{table}"
+        with open(f"{self.result_directory}_table.tex", "w") as f:
+            f.write(latex_table)
+
